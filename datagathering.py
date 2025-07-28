@@ -539,5 +539,5 @@ finalfinancials = pd.concat([finalfinancials,sector,industry],axis=1)
 
 finalfinancials.dropna(subset='pct_chg_forward')
 
-finalfinancials.to_pickle('financials.p')
+finalfinancials.to_pickle('Data/financials.p')
 
