@@ -82,7 +82,7 @@ def transform(series,choose=False):
 
         #%%
 
-data = pd.read_pickle('financials.p').drop(columns=['pct_chg_forward','treasury_yield'])
+data = pd.read_pickle('Data/financials.p').drop(columns=['pct_chg_forward','treasury_yield'])
 
 #%% Plotting relationships
 
@@ -98,7 +98,7 @@ for x in data.columns:
 keepcols = [x for x in data.columns if '_MAR' in x or 'EV' in x or '_by' in x or '_diff' in x or '_growth' in x in x or '/' in x or 'chg' in x or 'yield' in x or 'return_over' in x]
 clippeddata= data.copy()
 corrs_all = data.corr()
-corrs_all.to_excel('corrs.xlsx')
+corrs_all.to_excel('Analysis/corrs.xlsx')
 corrs = data.corr()[keepcols]
 
 vifdata = add_constant(data.fillna(data.mean()))
