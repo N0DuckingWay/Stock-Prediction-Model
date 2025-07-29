@@ -569,11 +569,10 @@ finalfinancials.sort_index(ascending=True,inplace=True)
 finalfinancials['pct_chg_forward'] = finalfinancials.groupby('ticker').price.pct_change().shift(-90)
 finalfinancials['Rev_growth_backward'] = finalfinancials.Revenue.drop_duplicates().groupby('ticker').pct_change()
 finalfinancials['Rev_growth_backward'] = finalfinancials['Rev_growth_backward'].ffill()
-# finalfinancials['days_between_backward'] = [float('nan')]+[finalfinancials.index[i][1] - finalfinancials.index[i-1][1] if finalfinancials.index[i][0] == finalfinancials.index[i-1][0] else float('nan') for i in range(1,len(finalfinancials.index))]
-# finalfinancials['days_between_forward'] = [finalfinancials.index[i][1] - finalfinancials.index[i-1][1] if finalfinancials.index[i][0] == finalfinancials.index[i-1][0] else float('nan') for i in range(1,len(finalfinancials.index))]+[float('nan')]
+
 finalfinancials['return_over_rf'] = finalfinancials['pct_chg_forward'] - finalfinancials.treasury_yield
 
-# finalfinancials = finalfinancials.loc[(finalfinancials.days_between_forward.dt.days <= 95) & (finalfinancials.days_between_backward.dt.days <= 95)]
+
 
 pershare = lambda col: finalfinancials[col]/finalfinancials['CommonStockSharesOutstanding']
 pricerat = lambda col: finalfinancials['price']/finalfinancials[col]
@@ -623,7 +622,9 @@ finalfinancials['P/CFO'] = pricerat('CFO_PS')
 sector = pd.get_dummies(allfinancials_merged.sector.str.lower().str.replace(' ','_').str.replace('&','and').str.replace(',',''),prefix='sector')
 industry = pd.get_dummies(allfinancials_merged.industry.str.lower().str.replace(' ','_').str.replace('&','and').str.replace(',',''),prefix='industry')
 
-finalfinancials = pd.concat([finalfinancials,sector,industry],axis=1)
+finalfinancials_wsector = pd.merge(finalfinancials,sector,how='inner',left_index=True,right_index=True)
+finalfinancials_merged = pd.merge(finalfinancials_wsector,industry,how='inner',left_index=True,right_index=True)
+
 
 
 
