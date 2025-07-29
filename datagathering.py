@@ -13,6 +13,13 @@ import pandas as pd, urllib3 as url, json, sys, requests, warnings
 warnings.filterwarnings("ignore")
 
 
+sic_to_naics = pd.read_csv('sic_to_naics.csv')
+def getnaics(sic):
+    naicsdf = sic_to_naics.loc[sic_to_naics['SIC Code'] == sic]['NAICS Code']
+    if len(naicsdf) > 0:
+        return naicsdf.values[0]
+    else:
+        return float('nan')
 
 stockkey = 'GJT87YF8QI5GZUND'
 
@@ -178,7 +185,7 @@ def getfinancials(ticker):
 
     '''
     
-    global companyrequest
+    global sicrequest, cik
     
     cik = mapper.ticker_to_cik[ticker]
     response = json.loads(http.request("GET",f'https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json').data)
@@ -240,6 +247,7 @@ def getfinancials(ticker):
 
         
         #getting stock data
+        sicrequest = http.request("GET",f'https://data.sec.gov/submissions/CIK{cik}.json')
         stockrequest = requests.get(f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol={ticker}&outputsize=full&apikey={stockkey}')
         companyrequest = requests.get(f'https://www.alphavantage.co/query?function=OVERVIEW&symbol={ticker}&apikey={stockkey}')
         
@@ -256,6 +264,14 @@ def getfinancials(ticker):
             industry = js['Industry']
         else:
             raise Exception(f'Request failed. Details: {companyrequest}')
+            
+        if sicrequest.status == 200:
+            js = sicrequest.json()
+            siccode = js['sic']
+            sic_desc = js['sicDescription']
+        else:
+            raise Exception(f'Request failed. Details: {sicrequest}')
+        
         
         
         
@@ -273,6 +289,9 @@ def getfinancials(ticker):
         out_final = pd.concat([out_final,stockdata]).drop_duplicates(subset=stockdata.columns).sort_index(ascending=True).ffill()
         out_final['sector'] = sector
         out_final['industry'] = industry
+        out_final['sic_code'] = siccode
+        out_final['sic_desc'] = sic_desc
+        out_final['naics_code'] = getnaics(siccode)
         
     except KeyError as e:
         raise KeyError(f'{e}. Ticker symbol: {ticker}. Key: {key}')
@@ -404,6 +423,8 @@ def getdata(alldata,url,valname,period,reset_month = False,chg=False,growth=Fals
         tolerance = pd.to_timedelta('95D')
     else:
         raise ValueError('invalid value for period. Must be daily, weekly, monthly, or quarterly')
+    if newdata[valname].dtype != float:
+        newdata[valname]=newdata[valname].astype(float)
     if chg == True:
         newdata[valname+'_diff'] = newdata[valname].diff()
     if growth == True:    
