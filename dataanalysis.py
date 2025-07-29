@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 warnings.filterwarnings("ignore")
 
 vifcalc = lambda vfdata: pd.Series({vfdata.columns[i]:vif(vfdata.astype(float),i) for i in range(len(vfdata.columns))})
-y = 'return_over_rf'
+y = 'pct_chg_forward'
 
 def transform(series,choose=False):
     global norms
@@ -82,12 +82,12 @@ def transform(series,choose=False):
 
         #%%
 
-data = pd.read_pickle('Data/financials.p').drop(columns=['pct_chg_forward','treasury_yield'])
+data = pd.read_pickle('Data/financials.p').drop(columns=['return_over_rf','treasury_yield'])
 
 #%% Plotting relationships
 
 for x in data.columns:
-    if x != 'return_over_rf':
+    if x != y:
         rolling = data[[x,y]].sort_values(by=x).dropna().rolling(1000).mean()
         rolling[x] = rolling[x].clip(lower = rolling[x].quantile(0.05),upper = rolling[x].quantile(0.95))
         rolling.plot(x=x,y=y)
@@ -114,7 +114,7 @@ for col in data.columns:
     clippeddata[col] = clippeddata[col].fillna(minmax.mean())
 
 
-vifs = vifcalc(vifdata[[x for x in vifdata.columns if x != 'return_over_rf' and 'days_between' not in x.lower()]])
+vifs = vifcalc(vifdata[[x for x in vifdata.columns if x != y and 'days_between' not in x.lower()]])
 
 highvif = vifs.loc[(vifs >= 5) & (vifs.index != 'const')]
 
