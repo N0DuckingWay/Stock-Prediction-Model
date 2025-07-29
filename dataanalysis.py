@@ -82,7 +82,7 @@ def transform(series,choose=False):
 
         #%%
 
-data = pd.read_pickle('Data/financials.p').drop(columns=['return_over_rf','treasury_yield'])
+data = pd.read_pickle('Data/financials.p').drop(columns=['treasury_yield'])
 
 #%% Plotting relationships
 
@@ -162,7 +162,7 @@ for c in data_transformed.columns:
 stats = {}
 
 for key in data_transformed.columns:
-    if key not in ['pct_chg_forward','return_over_rf']:
+    if key not in ['pct_chg_forward']:
         data_const = add_constant(data_transformed[[key,y]])
         model = OLS(exog=data_const[[key,'const']],endog=data_const[y],hasconst=True)
         results = model.fit()
@@ -179,7 +179,7 @@ buckets = [[x for x in stats.index if 'PS' in x],
            [x for x in stats.index if '_MAR' in x],
            [x for x in stats.index if 'debt_by' in x.lower()]]
 bucketedcols = [x for y in buckets for x in y]
-unbucketedcols = [x for x in stats.index if x not in bucketedcols and x not in ['pct_chg_forward', 'return_over_rf']]
+unbucketedcols = [x for x in stats.index if x not in bucketedcols and x not in ['pct_chg_forward']]
 allcols = unbucketedcols + buckets
 
 
