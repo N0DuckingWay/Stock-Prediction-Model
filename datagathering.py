@@ -503,7 +503,7 @@ finalfinancials = pd.DataFrame(index=allfinancials.index)
 finalfinancials.index.set_names(['ticker','date'],inplace=True)
 
 finalfinancials['Cash'] = allfinancials.CashAndCashEquivalentsAtCarryingValue.fillna(allfinancials.Cash)
-finalfinancials[['industry_employment','industry_employment_growth']] =  allfinancials[['industry_employment','industry_employment_growth']]
+finalfinancials['industry_employment_growth'] =  allfinancials['industry_employment_growth']
 
 finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=TREASURY_YIELD&interval=daily&maturity=3mo&apikey={stockkey}','treasury_yield','daily',chg=True)
 finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=WTI&interval=daily&apikey={stockkey}','wti_crude_price','daily',growth=True)
