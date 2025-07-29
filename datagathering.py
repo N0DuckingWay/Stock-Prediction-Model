@@ -397,7 +397,17 @@ headers = {'Content-type': 'application/json'}
 
 naics_sec_mapper = pd.read_excel('cesseriespub.xlsx',sheet_name='CES_Pub_NAICS_24',header=1)
 fixes = {454110.0:'455',
-         333314.0: '333310'}
+         333314.0: '333310',
+         333316.0: '3333',
+         336111.0: '3361',
+         515210.0:'5162',
+         518210:'518',
+         312230.0:'312',
+         333310.0:'3333',
+         334220.0:'33422',
+         334614.0:'3346',
+         332410.0:'3324',
+         532282.0:'5322'}
 allfinancials['naics_code'] = allfinancials['naics_code'].replace(fixes)
 naicslist = [str(int(x)) for x in set(allfinancials.naics_code.dropna())]
 
