@@ -357,6 +357,7 @@ tickers = [x for x in tickers if len(x) > 0 and x not in ['ARM','ASML']] #exclud
 
 
 finout = [getfinancials(x) for x in tickers]
+#%% putting all data into allfinancials
 allfinancials = pd.DataFrame()
 for x in finout:
     allfinancials = pd.concat([allfinancials,x],axis=0)
@@ -395,9 +396,10 @@ def gettotals(cols,maxvals=True,data=allfinancials,ticker=None):
 headers = {'Content-type': 'application/json'}
 
 naics_sec_mapper = pd.read_excel('cesseriespub.xlsx',sheet_name='CES_Pub_NAICS_24',header=1)
-fixes = {'454110':'455219'}
+fixes = {454110.0:'455',
+         333314.0: '333310'}
 allfinancials['naics_code'] = allfinancials['naics_code'].replace(fixes)
-naicslist = list(set(allfinancials.naics_code))
+naicslist = [str(int(x)) for x in set(allfinancials.naics_code.dropna())]
 
 naics_sec_mapper['seriesID'] = 'CES'+naics_sec_mapper['CES Industry Code'].str.replace('-','')+'01'
 series_naics = naics_sec_mapper[['seriesID','NAICS Code(1)']].loc[naics_sec_mapper['NAICS Code(1)'].isin(naicslist)]
@@ -408,20 +410,18 @@ if len(notin) > 0:
     print(notin)
 serieslist = list(series_naics['seriesID'])
 
-data_nineties = json.dumps({"seriesid": serieslist,"startyear":"1990", "endyear":"1999"})
-data_twothousands = json.dumps({"seriesid": serieslist,"startyear":"2000", "endyear":"2009"})
-data_twentytens = json.dumps({"seriesid": serieslist,"startyear":"2010", "endyear":"2019"})
-data_twentytwenties = json.dumps({"seriesid": serieslist,"startyear":"2020", "endyear":"2029"})
+data_nineties = json.dumps({"seriesid": serieslist,"startyear":"1990", "endyear":"2009",'registrationkey':'6eebf73b51c642fe8914b9b72cc73569'})
+data_twothousands = json.dumps({"seriesid": serieslist,"startyear":"2010", "endyear":"2029",'registrationkey':'6eebf73b51c642fe8914b9b72cc73569'})
+
 
 
 p_nineties = requests.post('https://api.bls.gov/publicAPI/v2/timeseries/data/', data=data_nineties, headers=headers)
 p_twothousands = requests.post('https://api.bls.gov/publicAPI/v2/timeseries/data/', data=data_twothousands, headers=headers)
-p_twentytens = requests.post('https://api.bls.gov/publicAPI/v2/timeseries/data/', data=data_twentytens, headers=headers)
-p_twentytwenties = requests.post('https://api.bls.gov/publicAPI/v2/timeseries/data/', data=data_twentytwenties, headers=headers)
+
 
 loader = lambda x: json.loads(x.text)['Results']['series']
 
-results = loader(p_nineties)+loader(p_twothousands)+loader(p_twentytens)+loader(p_twentytwenties)
+results = loader(p_nineties)+loader(p_twothousands)
 
 
 
@@ -438,11 +438,14 @@ unformatted['value'] = unformatted['value'].astype(float)
 formatted = pd.merge(unformatted,series_naics,left_on='seriesID',right_on='seriesID')[['month_end','NAICS Code(1)','value']].rename(columns={'value':'industry_employment','NAICS Code(1)':'naics_code'})
 
 formatted['industry_employment_growth'] = formatted.groupby(['naics_code'])['industry_employment'].pct_change()
-formatted['naics_code'] = formatted['naics_code'].astype(int)
+formatted['naics_code'] = formatted['naics_code'].astype(float)
 formatted.sort_values(by=['month_end'],ascending=True,inplace=True)
-allfinancials['date'] = [x[1] for x in allfinancials.index]
-allfinancials.sort_values(by=['date'],ascending=True,inplace=True)
-allfinancials = pd.merge_asof(allfinancials,formatted,left_on='date',right_on='month_end',by='naics_code',tolerance=pd.to_timedelta('80D'))
+allfinancials.naics_code = allfinancials.naics_code.astype(float)
+allfinancials.sort_index(level=1,ascending=True,inplace=True)
+allfinancials.reset_index(inplace=True)
+allfinancials.rename(columns={'level_0':'ticker','level_1':'date'},inplace=True)
+allfinancials_merged = pd.merge_asof(allfinancials,formatted,left_on='date',right_on='month_end',by='naics_code',tolerance=pd.to_timedelta('80D'))
+allfinancials_merged.set_index(['ticker','date'],inplace=True)
 #%% creating summary values
 
 def getdata(alldata,url,valname,period,reset_month = False,chg=False,growth=False):
@@ -499,11 +502,11 @@ def getdata(alldata,url,valname,period,reset_month = False,chg=False,growth=Fals
     return outdata.drop(columns='date_sort')
 
 
-finalfinancials = pd.DataFrame(index=allfinancials.index)
+finalfinancials = pd.DataFrame(index=allfinancials_merged.index)
 finalfinancials.index.set_names(['ticker','date'],inplace=True)
 
-finalfinancials['Cash'] = allfinancials.CashAndCashEquivalentsAtCarryingValue.fillna(allfinancials.Cash)
-finalfinancials['industry_employment_growth'] =  allfinancials['industry_employment_growth']
+finalfinancials['Cash'] = allfinancials_merged.CashAndCashEquivalentsAtCarryingValue.fillna(allfinancials_merged.Cash)
+finalfinancials['industry_employment_growth'] =  allfinancials_merged['industry_employment_growth']
 
 finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=TREASURY_YIELD&interval=daily&maturity=3mo&apikey={stockkey}','treasury_yield','daily',chg=True)
 finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=WTI&interval=daily&apikey={stockkey}','wti_crude_price','daily',growth=True)
@@ -517,37 +520,37 @@ finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?fu
 finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=NONFARM_PAYROLL&apikey={stockkey}','nonfarm_payroll','monthly',reset_month=True,growth=True)
 
 
-finalfinancials['LTDebt'] = (allfinancials['LongTermDebt']).fillna(allfinancials['LongTermDebtNoncurrent'])
-finalfinancials['CurrLTDebt']= allfinancials['LongTermDebtCurrent'].fillna(allfinancials['DebtCurrent']).fillna(allfinancials.LongTermDebtAndCapitalLeaseObligationsCurrent)
-finalfinancials['STDebt'] = allfinancials['ShortTermBorrowings'].fillna(allfinancials.OtherShortTermBorrowings)
+finalfinancials['LTDebt'] = (allfinancials_merged['LongTermDebt']).fillna(allfinancials_merged['LongTermDebtNoncurrent'])
+finalfinancials['CurrLTDebt']= allfinancials_merged['LongTermDebtCurrent'].fillna(allfinancials_merged['DebtCurrent']).fillna(allfinancials_merged.LongTermDebtAndCapitalLeaseObligationsCurrent)
+finalfinancials['STDebt'] = allfinancials_merged['ShortTermBorrowings'].fillna(allfinancials_merged.OtherShortTermBorrowings)
 
 finalfinancials['Debt'] = finalfinancials[['LTDebt','CurrLTDebt','STDebt']].sum(axis=1)
 
-finalfinancials['Revenue'] = allfinancials.Revenues.fillna(allfinancials.RevenueFromContractWithCustomerIncludingAssessedTax).fillna(allfinancials.RevenueFromContractWithCustomerExcludingAssessedTax).fillna(allfinancials.SalesRevenueNet)
+finalfinancials['Revenue'] = allfinancials_merged.Revenues.fillna(allfinancials_merged.RevenueFromContractWithCustomerIncludingAssessedTax).fillna(allfinancials_merged.RevenueFromContractWithCustomerExcludingAssessedTax).fillna(allfinancials_merged.SalesRevenueNet)
 
 
 
 
 
-finalfinancials['D&A'] = allfinancials.AccumulatedDepreciationDepletionAndAmortizationPropertyPlantAndEquipment.fillna(allfinancials.DepreciationDepletionAndAmortization).fillna(allfinancials.Depreciation).fillna(allfinancials.DepreciationAndAmortization).fillna(allfinancials.PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization)
+finalfinancials['D&A'] = allfinancials_merged.AccumulatedDepreciationDepletionAndAmortizationPropertyPlantAndEquipment.fillna(allfinancials_merged.DepreciationDepletionAndAmortization).fillna(allfinancials_merged.Depreciation).fillna(allfinancials_merged.DepreciationAndAmortization).fillna(allfinancials_merged.PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization)
 
 
-finalfinancials['Interest'] = allfinancials.InterestExpense.fillna(allfinancials.InterestExpense.fillna(0))
+finalfinancials['Interest'] = allfinancials_merged.InterestExpense.fillna(allfinancials_merged.InterestExpense.fillna(0))
 
-finalfinancials['Tax'] = allfinancials.IncomeTaxExpenseBenefit
+finalfinancials['Tax'] = allfinancials_merged.IncomeTaxExpenseBenefit
 
-finalfinancials['NI'] = allfinancials.NetIncomeLoss.fillna(allfinancials.ProfitLoss)
-finalfinancials['EBIT'] = allfinancials.IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest.fillna(allfinancials.IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments).fillna(finalfinancials.NI + finalfinancials.Interest+finalfinancials.Tax)
+finalfinancials['NI'] = allfinancials_merged.NetIncomeLoss.fillna(allfinancials_merged.ProfitLoss)
+finalfinancials['EBIT'] = allfinancials_merged.IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest.fillna(allfinancials_merged.IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments).fillna(finalfinancials.NI + finalfinancials.Interest+finalfinancials.Tax)
 finalfinancials['EBITDA'] = finalfinancials.EBIT + finalfinancials['D&A']
-finalfinancials['CFO'] = allfinancials.NetCashProvidedByUsedInOperatingActivities.fillna(allfinancials.NetCashProvidedByUsedInOperatingActivitiesContinuingOperations).fillna(allfinancials.NetCashProvidedByUsedInContinuingOperations)
+finalfinancials['CFO'] = allfinancials_merged.NetCashProvidedByUsedInOperatingActivities.fillna(allfinancials_merged.NetCashProvidedByUsedInOperatingActivitiesContinuingOperations).fillna(allfinancials_merged.NetCashProvidedByUsedInContinuingOperations)
 
-finalfinancials['Assets'] = allfinancials.Assets.fillna(allfinancials.AssetsCurrent+allfinancials.AssetsNoncurrent)
+finalfinancials['Assets'] = allfinancials_merged.Assets.fillna(allfinancials_merged.AssetsCurrent+allfinancials_merged.AssetsNoncurrent)
 
-finalfinancials['CurrAssets'] = allfinancials.AssetsCurrent
+finalfinancials['CurrAssets'] = allfinancials_merged.AssetsCurrent
 
-finalfinancials['CurrLiab'] = allfinancials.LiabilitiesCurrent
-finalfinancials['price'] = allfinancials['4. close']
-finalfinancials['CommonStockSharesOutstanding'] = allfinancials['CommonStockSharesOutstanding'].fillna(allfinancials.EntityCommonStockSharesOutstanding)
+finalfinancials['CurrLiab'] = allfinancials_merged.LiabilitiesCurrent
+finalfinancials['price'] = allfinancials_merged['4. close']
+finalfinancials['CommonStockSharesOutstanding'] = allfinancials_merged['CommonStockSharesOutstanding'].fillna(allfinancials_merged.EntityCommonStockSharesOutstanding)
 finalfinancials['CommonStockSharesOutstanding'] = finalfinancials['CommonStockSharesOutstanding'].groupby('ticker').ffill(3)
 
 finalfinancials = finalfinancials.astype(float)
@@ -607,8 +610,8 @@ finalfinancials['P/Assets'] = pricerat('Assets_PS')
 finalfinancials['P/CFO'] = pricerat('CFO_PS')
 
 
-sector = pd.get_dummies(allfinancials.sector.str.lower().str.replace(' ','_').str.replace('&','and').str.replace(',',''),prefix='sector')
-industry = pd.get_dummies(allfinancials.industry.str.lower().str.replace(' ','_').str.replace('&','and').str.replace(',',''),prefix='industry')
+sector = pd.get_dummies(allfinancials_merged.sector.str.lower().str.replace(' ','_').str.replace('&','and').str.replace(',',''),prefix='sector')
+industry = pd.get_dummies(allfinancials_merged.industry.str.lower().str.replace(' ','_').str.replace('&','and').str.replace(',',''),prefix='industry')
 
 finalfinancials = pd.concat([finalfinancials,sector,industry],axis=1)
 
