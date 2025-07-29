@@ -15,13 +15,14 @@ warnings.filterwarnings("ignore")
 
 sic_to_naics = pd.read_csv('sic_to_naics.csv')
 def getnaics(sic):
-    naicsdf = sic_to_naics.loc[sic_to_naics['SIC Code'] == sic]['NAICS Code']
+    naicsdf = sic_to_naics.loc[sic_to_naics['SIC'] == int(sic)]['NAICS']
     if len(naicsdf) > 0:
         return naicsdf.values[0]
     else:
         return float('nan')
 
 stockkey = 'GJT87YF8QI5GZUND'
+blskey = '6eebf73b51c642fe8914b9b72cc73569'
 
 
 sys.setrecursionlimit(10000000)
@@ -389,6 +390,59 @@ def gettotals(cols,maxvals=True,data=allfinancials,ticker=None):
     else:
         return data.loc[ticker].sort_index(ascending=True)
 
+
+#%% #Adding in BLS data
+headers = {'Content-type': 'application/json'}
+
+naics_sec_mapper = pd.read_excel('cesseriespub.xlsx',sheet_name='CES_Pub_NAICS_24',header=1)
+fixes = {'454110':'455219'}
+allfinancials['naics_code'] = allfinancials['naics_code'].replace(fixes)
+naicslist = list(set(allfinancials.naics_code))
+
+naics_sec_mapper['seriesID'] = 'CES'+naics_sec_mapper['CES Industry Code'].str.replace('-','')+'01'
+series_naics = naics_sec_mapper[['seriesID','NAICS Code(1)']].loc[naics_sec_mapper['NAICS Code(1)'].isin(naicslist)]
+
+notin = [x for x in naicslist if x not in series_naics['NAICS Code(1)'].values]
+if len(notin) > 0:
+    print(f'The following naics are not in the mapping and are potentially out of date:')
+    print(notin)
+serieslist = list(series_naics['seriesID'])
+
+data_nineties = json.dumps({"seriesid": serieslist,"startyear":"1990", "endyear":"1999"})
+data_twothousands = json.dumps({"seriesid": serieslist,"startyear":"2000", "endyear":"2009"})
+data_twentytens = json.dumps({"seriesid": serieslist,"startyear":"2010", "endyear":"2019"})
+data_twentytwenties = json.dumps({"seriesid": serieslist,"startyear":"2020", "endyear":"2029"})
+
+
+p_nineties = requests.post('https://api.bls.gov/publicAPI/v2/timeseries/data/', data=data_nineties, headers=headers)
+p_twothousands = requests.post('https://api.bls.gov/publicAPI/v2/timeseries/data/', data=data_twothousands, headers=headers)
+p_twentytens = requests.post('https://api.bls.gov/publicAPI/v2/timeseries/data/', data=data_twentytens, headers=headers)
+p_twentytwenties = requests.post('https://api.bls.gov/publicAPI/v2/timeseries/data/', data=data_twentytwenties, headers=headers)
+
+loader = lambda x: json.loads(x.text)['Results']['series']
+
+results = loader(p_nineties)+loader(p_twothousands)+loader(p_twentytens)+loader(p_twentytwenties)
+
+
+
+unformatted = pd.DataFrame()
+for result in results:
+    intermediate = pd.DataFrame(result['data'])
+    intermediate['seriesID'] = result['seriesID']
+    unformatted = pd.concat([unformatted,intermediate])
+
+unformatted['month_start'] = pd.to_datetime(unformatted['year'].astype(str)+'-'+unformatted['period'].str.replace('M','')+'-01')
+
+unformatted['month_end'] = pd.to_datetime(unformatted['year'].astype(str)+'-'+unformatted['period'].str.replace('M','')+'-'+unformatted.month_start.dt.days_in_month.astype(str))
+unformatted['value'] = unformatted['value'].astype(float)
+formatted = pd.merge(unformatted,series_naics,left_on='seriesID',right_on='seriesID')[['month_end','NAICS Code(1)','value']].rename(columns={'value':'industry_employment','NAICS Code(1)':'naics_code'})
+
+formatted['industry_employment_growth'] = formatted.groupby(['naics_code'])['industry_employment'].pct_change()
+formatted['naics_code'] = formatted['naics_code'].astype(int)
+formatted.sort_values(by=['month_end'],ascending=True,inplace=True)
+allfinancials['date'] = [x[1] for x in allfinancials.index]
+allfinancials.sort_values(by=['date'],ascending=True,inplace=True)
+allfinancials = pd.merge_asof(allfinancials,formatted,left_on='date',right_on='month_end',by='naics_code',tolerance=pd.to_timedelta('80D'))
 #%% creating summary values
 
 def getdata(alldata,url,valname,period,reset_month = False,chg=False,growth=False):
@@ -449,6 +503,7 @@ finalfinancials = pd.DataFrame(index=allfinancials.index)
 finalfinancials.index.set_names(['ticker','date'],inplace=True)
 
 finalfinancials['Cash'] = allfinancials.CashAndCashEquivalentsAtCarryingValue.fillna(allfinancials.Cash)
+finalfinancials[['industry_employment','industry_employment_growth']] =  allfinancials[['industry_employment','industry_employment_growth']]
 
 finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=TREASURY_YIELD&interval=daily&maturity=3mo&apikey={stockkey}','treasury_yield','daily',chg=True)
 finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=WTI&interval=daily&apikey={stockkey}','wti_crude_price','daily',growth=True)
@@ -556,6 +611,10 @@ sector = pd.get_dummies(allfinancials.sector.str.lower().str.replace(' ','_').st
 industry = pd.get_dummies(allfinancials.industry.str.lower().str.replace(' ','_').str.replace('&','and').str.replace(',',''),prefix='industry')
 
 finalfinancials = pd.concat([finalfinancials,sector,industry],axis=1)
+
+
+
+
 #%%
 
 finalfinancials.dropna(subset='pct_chg_forward')
