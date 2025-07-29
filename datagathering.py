@@ -571,11 +571,11 @@ finalfinancials['CommonStockSharesOutstanding'] = finalfinancials['CommonStockSh
 finalfinancials = finalfinancials.astype(float)
 finalfinancials.dropna(subset='NI',inplace=True)
 finalfinancials.sort_index(ascending=True,inplace=True)
-finalfinancials['pct_chg_forward'] = finalfinancials.groupby('ticker').price.pct_change().shift(-90)
+finalfinancials['pct_chg_forward'] = finalfinancials.groupby('ticker').price.pct_change().shift(-33)
 finalfinancials['Rev_growth_backward'] = finalfinancials.Revenue.drop_duplicates().groupby('ticker').pct_change()
 finalfinancials['Rev_growth_backward'] = finalfinancials['Rev_growth_backward'].ffill()
 
-finalfinancials['return_over_rf'] = finalfinancials['pct_chg_forward'] - finalfinancials.treasury_yield
+# finalfinancials['return_over_rf'] = finalfinancials['pct_chg_forward'] - finalfinancials.treasury_yield
 
 
 
