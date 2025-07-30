@@ -458,7 +458,7 @@ allfinancials_merged = pd.merge_asof(allfinancials,formatted,left_on='date',righ
 allfinancials_merged.set_index(['ticker','date'],inplace=True)
 #%% creating summary values
 
-def getdata(alldata,url,valname,period,reset_month = False,chg=False,growth=False):
+def getalphavantagedata(alldata,url,valname,period,reset_month = False,chg=False,growth=False):
     global moddata,newdata, outdata, chgdata, pctchgdata
     moddata = alldata.copy()
     moddata['date_sort'] = pd.to_datetime([x[1] for x in moddata.index])
@@ -471,6 +471,7 @@ def getdata(alldata,url,valname,period,reset_month = False,chg=False,growth=Fals
             #resets the date to the month or quarter end
             if period == 'monthly':
                 newdata.index = pd.to_datetime(newdata.index.year.astype(str)+'-'+newdata.index.month.astype(str)+'-'+newdata.index.days_in_month.astype(str))
+            
             elif period == 'quarterly':
                 #has to be repeated to reset days_in_month to the new month
                 newdata.index = pd.to_datetime(newdata.index.year.astype(str)+'-'+(newdata.index.month+2).astype(str)+'-'+newdata.index.day.astype(str))
@@ -492,14 +493,20 @@ def getdata(alldata,url,valname,period,reset_month = False,chg=False,growth=Fals
         raise ValueError('invalid value for period. Must be daily, weekly, monthly, or quarterly')
     if newdata[valname].dtype != float:
         newdata[valname]=newdata[valname].astype(float)
+    
+    
     if chg == True:
-        newdata[valname+'_diff'] = newdata[valname].diff()
+        newdata[valname+'_diff_'+period] = newdata[valname].diff()
         if period == 'daily': #only do this calculation for information available on a daily interval, otherwise 31 periods will be 31 months.
-            newdata[valname+'_diff_mo'] = newdata[valname].diff(periods=31)
+            newdata[valname+'_diff_monthly'] = newdata[valname].diff(periods=31)
+        if period == 'monthly' or period == 'daily':
+            newdata[valname+'_diff_quarterly'] = newdata[valname].diff(periods=93)
     if growth == True:    
-        newdata[valname+'_pctdiff'] = newdata[valname].pct_change()
+        newdata[valname+'_pctdiff_'+period] = newdata[valname].pct_change()
         if period == 'daily': #only do this calculation for information available on a daily interval, otherwise 31 periods will be 31 months.
-            newdata[valname+'_pctdiff_mo'] = newdata[valname].pct_change(periods=31)
+            newdata[valname+'_pctdiff_monthly'] = newdata[valname].pct_change(periods=31)
+        if period == 'monthly' or period == 'daily':
+            newdata[valname+'_pctdiff_quarterly'] = newdata[valname].pct_change(periods=93)
     outdata = pd.merge_asof(moddata,newdata,left_on='date_sort',right_index=True,tolerance = tolerance)
     
     outdata[valname] = outdata[valname].groupby('ticker').ffill()
@@ -522,16 +529,18 @@ finalfinancials.index.set_names(['ticker','date'],inplace=True)
 finalfinancials['Cash'] = allfinancials_merged.CashAndCashEquivalentsAtCarryingValue.fillna(allfinancials_merged.Cash)
 finalfinancials['industry_employment_growth'] =  allfinancials_merged['industry_employment_growth']
 
-finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=TREASURY_YIELD&interval=daily&maturity=1mo&apikey={stockkey}','treasury_yield','daily',chg=True)
-finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=WTI&interval=daily&apikey={stockkey}','wti_crude_price','daily',growth=True)
-finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=ALL_COMMODITIES&interval=monthly&apikey={stockkey}','commodity_index','monthly',reset_month=True,growth=True)
-finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=REAL_GDP&interval=quarterly&apikey={stockkey}','real_gdp','quarterly',reset_month=True,growth=True)
-finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=FEDERAL_FUNDS_RATE&interval=daily&apikey={stockkey}','fed_funds_rate','daily',chg=True)
-finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=CPI&interval=monthly&apikey={stockkey}','cpi','monthly',reset_month=True,growth=True)
-finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=RETAIL_SALES&apikey={stockkey}','retail_sales','monthly',reset_month=True,growth=True)
-finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=DURABLES&apikey={stockkey}','durable_goods_orders','monthly',reset_month=True,growth=True)
-finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=UNEMPLOYMENT&apikey={stockkey}','unemployment','monthly',reset_month=True,chg=True)
-finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=NONFARM_PAYROLL&apikey={stockkey}','nonfarm_payroll','monthly',reset_month=True,growth=True)
+finalfinancials = getalphavantagedata(finalfinancials,f'https://www.alphavantage.co/query?function=TREASURY_YIELD&interval=daily&maturity=1mo&apikey={stockkey}','treasury_yield','daily',chg=True)
+finalfinancials = getalphavantagedata(finalfinancials,f'https://www.alphavantage.co/query?function=WTI&interval=daily&apikey={stockkey}','wti_crude_price','daily',growth=True)
+finalfinancials = getalphavantagedata(finalfinancials,f'https://www.alphavantage.co/query?function=ALL_COMMODITIES&interval=monthly&apikey={stockkey}','commodity_index','monthly',reset_month=True,growth=True)
+finalfinancials = getalphavantagedata(finalfinancials,f'https://www.alphavantage.co/query?function=REAL_GDP&interval=quarterly&apikey={stockkey}','real_gdp','quarterly',reset_month=True,growth=True)
+finalfinancials = getalphavantagedata(finalfinancials,f'https://www.alphavantage.co/query?function=FEDERAL_FUNDS_RATE&interval=daily&apikey={stockkey}','fed_funds_rate','daily',chg=True)
+finalfinancials = getalphavantagedata(finalfinancials,f'https://www.alphavantage.co/query?function=CPI&interval=monthly&apikey={stockkey}','cpi','monthly',reset_month=True,growth=True)
+finalfinancials = getalphavantagedata(finalfinancials,f'https://www.alphavantage.co/query?function=RETAIL_SALES&apikey={stockkey}','retail_sales','monthly',reset_month=True,growth=True)
+finalfinancials = getalphavantagedata(finalfinancials,f'https://www.alphavantage.co/query?function=DURABLES&apikey={stockkey}','durable_goods_orders','monthly',reset_month=True,growth=True)
+finalfinancials = getalphavantagedata(finalfinancials,f'https://www.alphavantage.co/query?function=UNEMPLOYMENT&apikey={stockkey}','unemployment','monthly',reset_month=True,chg=True)
+finalfinancials = getalphavantagedata(finalfinancials,f'https://www.alphavantage.co/query?function=NONFARM_PAYROLL&apikey={stockkey}','nonfarm_payroll','monthly',reset_month=True,growth=True)
+
+
 
 
 
