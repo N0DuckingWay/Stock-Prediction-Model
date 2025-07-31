@@ -23,6 +23,7 @@ def getnaics(sic):
 
 stockkey = 'GJT87YF8QI5GZUND'
 blskey = '6eebf73b51c642fe8914b9b72cc73569'
+fredkey = '84a26b17b51a63ed7dae3c7936a19d02'
 
 
 sys.setrecursionlimit(10000000)
@@ -458,13 +459,17 @@ allfinancials_merged = pd.merge_asof(allfinancials,formatted,left_on='date',righ
 allfinancials_merged.set_index(['ticker','date'],inplace=True)
 #%% creating summary values
 
-def getalphavantagedata(alldata,url,valname,period,reset_month = False,chg=False,growth=False):
-    global moddata,newdata, outdata, chgdata, pctchgdata
+def getalphavantagedata(alldata,url,valname,period,reset_month = False,chg=False,growth=False, source='bls'):
+    global moddata,newdata, outdata, chgdata, pctchgdata, response
     moddata = alldata.copy()
     moddata['date_sort'] = pd.to_datetime([x[1] for x in moddata.index])
     response = requests.get(url)
     if response.status_code == 200:
-        newdata = pd.DataFrame(response.json()['data']).sort_values(by='date',ascending=True).set_index('date').rename(columns={'value':valname})
+        if source == 'bls':
+            newdata = pd.DataFrame(response.json()['data']).sort_values(by='date',ascending=True).set_index('date').rename(columns={'value':valname})
+        elif source == 'fred':
+            newdata = pd.DataFrame(response.json()['observations']).sort_values(by='date',ascending=True).set_index('date').rename(columns={'value':valname})
+            newdata.drop(columns=['realtime_start','realtime_end'],inplace=True)
         newdata.index = pd.to_datetime(newdata.index)
         newdata = newdata.loc[newdata[valname] != '.']
         if reset_month == True:
@@ -512,9 +517,18 @@ def getalphavantagedata(alldata,url,valname,period,reset_month = False,chg=False
     outdata[valname] = outdata[valname].groupby('ticker').ffill()
     
     if chg == True:
-        outdata[valname+'_diff'] = outdata[valname+'_diff'].groupby('ticker').ffill()
+        outdata[valname+'_diff_'+period] = outdata[valname+'_diff_'+period].groupby('ticker').ffill()
+        if period == 'daily': #only do this calculation for information available on a daily interval, otherwise 31 periods will be 31 months.
+            outdata[valname+'_diff_monthly'] = outdata[valname+'_diff_monthly'].groupby('ticker').ffill()
+        if period == 'monthly' or period == 'daily':
+            outdata[valname+'_diff_quarterly'] = outdata[valname+'_diff_monthly'].groupby('ticker').ffill()
+            
     if growth == True:    
-        outdata[valname+'_pctdiff'] = outdata[valname+'_pctdiff'].groupby('ticker').ffill()
+        outdata[valname+'_pctdiff_'+period] = outdata[valname+'_pctdiff_'+period].groupby('ticker').ffill()
+        if period == 'daily': #only do this calculation for information available on a daily interval, otherwise 31 periods will be 31 months.
+            outdata[valname+'_pctdiff_monthly'] = outdata[valname+'_pctdiff_monthly'].groupby('ticker').ffill()
+        if period == 'monthly' or period == 'daily':
+            outdata[valname+'_pctdiff_quarterly'] = outdata[valname+'_pctdiff_quarterly'].groupby('ticker').ffill()
     
     
         
@@ -539,6 +553,8 @@ finalfinancials = getalphavantagedata(finalfinancials,f'https://www.alphavantage
 finalfinancials = getalphavantagedata(finalfinancials,f'https://www.alphavantage.co/query?function=DURABLES&apikey={stockkey}','durable_goods_orders','monthly',reset_month=True,growth=True)
 finalfinancials = getalphavantagedata(finalfinancials,f'https://www.alphavantage.co/query?function=UNEMPLOYMENT&apikey={stockkey}','unemployment','monthly',reset_month=True,chg=True)
 finalfinancials = getalphavantagedata(finalfinancials,f'https://www.alphavantage.co/query?function=NONFARM_PAYROLL&apikey={stockkey}','nonfarm_payroll','monthly',reset_month=True,growth=True)
+
+finalfinancials = getalphavantagedata(finalfinancials,f'https://api.stlouisfed.org/fred/series/observations?series_id=UMCSENT&api_key={fredkey}&file_type=json','consumer_confidence','monthly',reset_month=True,chg=True, growth=True,source='fred')
 
 
 
