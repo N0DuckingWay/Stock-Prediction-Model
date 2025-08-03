@@ -520,8 +520,9 @@ def getdata(alldata,url,valname,period,reset_month = False,chg=False,growth=Fals
             newdata[valname+'_pctdiff_quarterly'] = newdata[valname].pct_change(periods=16)
         if period == 'monthly':
             newdata[valname+'_pctdiff_quarterly'] = newdata[valname].pct_change(periods=4)
+    moddata.sort_values(by='date_sort',ascending=True,inplace=True)
     outdata = pd.merge_asof(moddata,newdata,left_on='date_sort',right_index=True,tolerance = tolerance)
-    
+    outdata.sort_index(ascending=True,inplace=True)
     outdata[valname] = outdata[valname].groupby('ticker').ffill()
     
     if chg == True:
@@ -570,13 +571,13 @@ finalfinancials = feddata('ADPWINDMANNERSA','adp_manufacturing_payrolls','weekly
 finalfinancials = feddata('ADPWINDCONNERSA','adp_construction_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
 finalfinancials = feddata('ADPWINDINFONERSA','adp_information_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
 finalfinancials = feddata('ADPWINDLSHPNERSA','adp_hospitality_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
-finalfinancials = feddata('ADPWES1T19ENERSA','adp_smallbiz_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
 finalfinancials = feddata('ADPWINDPROBUSNERSA','adp_profservices_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
 finalfinancials = feddata('ADPMINDEDHLTNERSA','adp_ed_health_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
 
+finalfinancials = feddata('ADPWES1T19ENERSA','adp_smallbiz_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
 finalfinancials = feddata('ADPWES500PENERSA','adp_largebiz_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
 finalfinancials = feddata('ADPWES250T499ENERSA','adp_medlargebiz_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
-finalfinancials = feddata('ADPWES500PENERSA','adp_largebiz_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
+
 
 finalfinancials = feddata('ADPWINDTTUNERSA','adp_trade_transport_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
 finalfinancials = feddata('ADPWINDFINNERSA','adp_financial_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
@@ -588,17 +589,17 @@ finalfinancials = feddata('ADPWINDOTHSRVNERSA','adp_otherservices_payrolls','wee
 finalfinancials = feddata('PCUOMFGOMFG','ppi_total','monthly',reset_month=True,change=True, pctchange=True,source='fred')
 
 #all manufacturing naics codes
-manufacturing = finalfinancials.loc[finalfinancials.naics.str[:2].isin(['31','32','33'])]['naics_code','sic_desc'].drop_duplicates(subset='naics_code')
-man_naics = list(manufacturing['naics_code'])
+manufacturing = allfinancials.loc[allfinancials.naics_code.astype(str).str[:2].isin(['31','32','33'])][['naics_code','sic_desc']].drop_duplicates(subset='naics_code')
+man_naics = [str(int(x)) for x in manufacturing['naics_code']]
 man_desc = list(manufacturing['sic_desc'])
 
 
 for i in range(len(man_naics)):
     naics = man_naics[i]
-
     try:
+        
         naics_used = naics
-        finalfinancials = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred')
+        finalfinancials = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred')    
     except:
         try:
             naics_used = naics[:-1]
@@ -616,7 +617,7 @@ for i in range(len(man_naics)):
                         naics_used = naics[:-4]
                         finalfinancials = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred')
                     except:
-                        pass
+                        print(f'naics {naics} not in ppi data')
 
 
 
