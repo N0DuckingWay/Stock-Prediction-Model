@@ -80,7 +80,7 @@ def trackdown(dictionary, value,hint = None, outlist = [],recur=0):
 
 
 def dataclean(data,key,unit='USD',newcol = None,form='10-Q',sheet='Income'):
-    global year, df, quarter, data_orig, nine, finalq, ninenew, ninenew_merged,finalq_merged, df_noedit, ninenew, formcopy
+    
     formcopy = form
     
     
@@ -187,7 +187,7 @@ def getfinancials(ticker):
 
     '''
     
-    global sicrequest, cik
+    
     
     cik = mapper.ticker_to_cik[ticker]
     response = json.loads(http.request("GET",f'https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json').data)
@@ -295,8 +295,23 @@ def getfinancials(ticker):
         out_final['sic_desc'] = sic_desc
         out_final['naics_code'] = getnaics(siccode)
         
+        
+        
     except KeyError as e:
         raise KeyError(f'{e}. Ticker symbol: {ticker}. Key: {key}')
+    
+    keep=['Cash','LongTermDebt','LongTermDebtNoncurrent','LongTermDebtCurrent','DebtCurrent','LongTermDebtAndCapitalLeaseObligationsCurrent',
+          'ShortTermBorrowings','OtherShortTermBorrowings','LTDebt','CurrLTDebt','STDebt','Revenues','RevenueFromContractWithCustomerIncludingAssessedTax','RevenueFromContractWithCustomerExcludingAssessedTax',
+          'SalesRevenueNet','AccumulatedDepreciationDepletionAndAmortizationPropertyPlantAndEquipment','DepreciationDepletionAndAmortization','Depreciation','DepreciationAndAmortization',
+          'PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization','InterestExpense','IncomeTaxExpenseBenefit',
+          'NetIncomeLoss','ProfitLoss','IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest',
+          'IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments',
+          'NetCashProvidedByUsedInOperatingActivities','NetCashProvidedByUsedInOperatingActivitiesContinuingOperations','NetCashProvidedByUsedInContinuingOperations'
+          'Assets','AssetsCurrent','AssetsNoncurrent','AssetsCurrent','LiabilitiesCurrent','4. close','CommonStockSharesOutstanding','EntityCommonStockSharesOutstanding',
+          'sector','industry','naics_code','sic_code','sic_desc','date']
+    
+    dropcols = [x for x in out_final.columns if x not in keep]
+    out_final = out_final.drop(columns=dropcols)
     
     out_final = out_final.dropna(axis=1,how='all')
     return out_final
@@ -360,17 +375,26 @@ tickers = list(tickerlist)
 # ciks = pd.Series(mapper.ticker_to_cik).loc[tickers]
 errors = {}
 finout = []
-for ticker in tickers:
+
+for i in range(len(tickers)):
+    ticker = tickers[i]
+    print(f'Gathering financial data for {ticker}. {round(100*i/len(tickers),2)}% done gathering financial information.')
     try:
         finout.append(getfinancials(ticker))
     except Exception as e:
         errors[ticker] = e
 
+print(f'finished getting data for each ticker')
+
 #%% putting all data into allfinancials
-allfinancials = pd.DataFrame()
-for x in finout:
-    allfinancials = pd.concat([allfinancials,x],axis=0)
-# allfinancials = pd.concat(finout,axis=0)
+
+print(f'putting data into allfinancials')
+# allfinancials = 
+
+# pd.DataFrame()
+# for x in finout:
+#     allfinancials = pd.concat([allfinancials,x],axis=0)
+allfinancials = pd.concat(finout,axis=0)
 
 
 allfinancials['date_sort'] = pd.to_datetime([x[1] for x in allfinancials.index])
@@ -403,7 +427,7 @@ def gettotals(cols,maxvals=True,data=allfinancials,ticker=None):
 
 #%% #Adding in BLS data
 headers = {'Content-type': 'application/json'}
-
+print('getting BLS data')
 naics_sec_mapper = pd.read_excel('cesseriespub.xlsx',sheet_name='CES_Pub_NAICS_24',header=1)
 fixes = {454110.0:'455',
          333314.0: '3333',
@@ -466,9 +490,9 @@ allfinancials.rename(columns={'level_0':'ticker','level_1':'date'},inplace=True)
 allfinancials_merged = pd.merge_asof(allfinancials,formatted,left_on='date',right_on='month_end',by='naics_code',tolerance=pd.to_timedelta('80D'))
 allfinancials_merged.set_index(['ticker','date'],inplace=True)
 #%% creating summary values
-
+print('adding in computed variables and other economic data')
 def getdata(alldata,url,valname,period,reset_month = False,chg=False,growth=False, source='bls'):
-    global moddata,newdata, outdata, chgdata, pctchgdata, response
+    
     moddata = alldata.copy()
     moddata['date_sort'] = pd.to_datetime([x[1] for x in moddata.index])
     response = requests.get(url)
@@ -629,6 +653,7 @@ for i in range(len(man_naics)):
 
 
 
+      
 
 
 finalfinancials['LTDebt'] = (allfinancials_merged['LongTermDebt']).fillna(allfinancials_merged['LongTermDebtNoncurrent'])
@@ -646,7 +671,10 @@ finalfinancials['Revenue'] = allfinancials_merged.Revenues.fillna(allfinancials_
 finalfinancials['D&A'] = allfinancials_merged.AccumulatedDepreciationDepletionAndAmortizationPropertyPlantAndEquipment.fillna(allfinancials_merged.DepreciationDepletionAndAmortization).fillna(allfinancials_merged.Depreciation).fillna(allfinancials_merged.DepreciationAndAmortization).fillna(allfinancials_merged.PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization)
 
 
-finalfinancials['Interest'] = allfinancials_merged.InterestExpense.fillna(allfinancials_merged.InterestExpense.fillna(0))
+
+      
+
+finalfinancials['Interest'] = allfinancials_merged.InterestExpense.fillna(0)
 
 finalfinancials['Tax'] = allfinancials_merged.IncomeTaxExpenseBenefit
 
@@ -718,6 +746,8 @@ finalfinancials['P/EBITDA'] = pricerat('EBITDA_PS')
 finalfinancials['P/Rev'] = pricerat('REV_PS')
 finalfinancials['P/Assets'] = pricerat('Assets_PS')
 finalfinancials['P/CFO'] = pricerat('CFO_PS')
+
+
 
 
 sector = pd.get_dummies(allfinancials_merged.sector.str.lower().str.replace(' ','_').str.replace('&','and').str.replace(',',''),prefix='sector')
