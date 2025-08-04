@@ -20,6 +20,58 @@ warnings.filterwarnings("ignore")
 vifcalc = lambda vfdata: pd.Series({vfdata.columns[i]:vif(vfdata.astype(float),i) for i in range(len(vfdata.columns))})
 y = 'pct_chg_forward'
 
+
+
+
+
+#%%
+
+def get_timeseries(varname,y=y,n_roll = 1,lag=None,mindate=None,maxdate=None,maxvar = np.inf,minvar = -np.inf):
+    global graphdata,tsdata,counts
+    if n_roll < 1:
+        raise ValueError('n_roll must be greater than or equal to 1')
+    
+    indata = data.copy()
+    
+    tsdata = indata.groupby('date')[[varname,y]].mean()
+    counts = indata.groupby('date')[y].count()
+    tsdata = tsdata.loc[counts/counts.max() > 0.25]
+    if lag != None:
+        tsdata[varname] = tsdata[varname].shift(lag)
+    graphdata = tsdata.rolling(n_roll).mean()
+    
+    if mindate != None:
+        graphdata = graphdata.loc[graphdata.index >= pd.to_datetime(mindate)]
+    if maxdate != None:
+        graphdata = graphdata.loc[graphdata.index <= pd.to_datetime(maxdate)]
+        
+    graphdata = graphdata.loc[graphdata.index.dayofweek <= 4]
+    
+    graphdata[varname] = graphdata[varname].clip(upper = maxvar,lower=minvar)
+    
+    
+    fig, ax1 = plt.subplots()
+    ax1.plot(graphdata.index,graphdata[y],color='black')
+    ax1.set_ylabel(y,color='black')
+    ax1.tick_params(axis='y',labelcolor='black')
+    
+    ax2 = ax1.twinx()
+    ax2.plot(graphdata.index,graphdata[varname],color='red')
+    ax2.set_ylabel(varname,color='red')
+    ax2.tick_params(axis='y',color='red')
+    ax1.tick_params(axis='x',rotation=45)
+    
+    ax1.set_xlabel('date')
+    plt.title(f'{varname} vs {y} time series')
+    plt.show()
+    
+def plot_recessions(varname,y=y,n_roll = 1,lag=None,maxvar = np.inf,minvar = -np.inf):
+    get_timeseries(varname,y=y,n_roll = n_roll,lag=lag,mindate=None,maxdate='2010-12-31',maxvar=maxvar,minvar=minvar)
+    get_timeseries(varname,y=y,n_roll = n_roll,lag=lag,mindate='2020-01-01',maxdate='2022-01-01',maxvar=maxvar,minvar=minvar)
+    
+    
+    
+
 def transform(series,choose=False):
     global norms
     
@@ -82,7 +134,9 @@ def transform(series,choose=False):
 
         #%%
 
-data = pd.read_pickle('Data/financials.p').drop(columns=['treasury_yield'])
+data = pd.read_pickle('Data/financials.p')
+
+
 
 #%% Plotting relationships
 
@@ -95,7 +149,7 @@ for x in data.columns:
 
 #%% Correlations, Etc.
 
-keepcols = [x for x in data.columns if '_MAR' in x or 'EV' in x or '_by' in x or '_diff' in x or '_growth' in x in x or '/' in x or 'chg' in x or 'yield' in x or 'return_over' in x]
+keepcols = [x for x in data.columns if '_MAR' in x or 'EV' in x or '_by' in x or '_diff' in x or '_growth' in x in x or '/' in x or 'chg' in x or 'yield' in x or 'return_over' in x  or 'fed_funds' in x or 'unemployment' in x]
 clippeddata= data.copy()
 corrs_all = data.corr()
 corrs_all.to_excel('Analysis/corrs.xlsx')
@@ -116,7 +170,7 @@ for col in data.columns:
 
 vifs = vifcalc(vifdata[[x for x in vifdata.columns if x != y and 'days_between' not in x.lower()]])
 
-highvif = vifs.loc[(vifs >= 5) & (vifs.index != 'const')]
+highvif = vifs.loc[(vifs >= 5) & (vifs.index != 'const')].sort_values(ascending=False)
 
 vif_corr = pd.DataFrame({col:corrs_all[col].loc[(corrs_all[col] < 1) & (corrs_all[col] > 0.5)].to_dict() for col in highvif.index})
 
