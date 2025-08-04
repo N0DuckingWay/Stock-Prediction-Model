@@ -32,7 +32,24 @@ user_agent = {'user-agent': 'Zachary Hoffman (zdhoffman@gmail.com)'}
 http = url.PoolManager(10,headers=user_agent)
 
 #%% functions
+def getcolnames(hint,data=allfinancials,missper = False):
+    out = [x for x in data.columns if hint.lower() in x.lower()]
+    out.sort()
+    if missper == True:
+        return data[out].isnull().mean().sort_values()
+    return out
+    
 
+def gettotals(cols,maxvals=True,data=allfinancials,ticker=None):
+    if maxvals == True:
+        data = data[cols].max(axis=1)
+    else:
+        data = data[cols]
+    if ticker == None:
+        return data.sort_index(ascending=True)
+    else:
+        return data.loc[ticker].sort_index(ascending=True)
+    
 getvar = lambda test : [x for x in data.keys() if test.lower() in x.lower()]
 
 def trackdown(dictionary, value,hint = None, outlist = [],recur=0):
@@ -374,55 +391,28 @@ tickerlist = pd.read_excel('tickers.xlsx',header=1)['Ticker']
 tickers = list(tickerlist)
 # ciks = pd.Series(mapper.ticker_to_cik).loc[tickers]
 errors = {}
-finout = []
 
+allfinancials = pd.DataFrame()
+
+print(f'Getting data for {len(tickers)} tickers. This may take a while.')
 for i in range(len(tickers)):
     ticker = tickers[i]
-    print(f'Gathering financial data for {ticker}. {round(100*i/len(tickers),2)}% done gathering financial information.')
+    print(f'Gathering financial data for {ticker}. Ticker {i} out of {len(tickers)}. {round(100*i/len(tickers),2)}% done gathering financial information.')
     try:
-        finout.append(getfinancials(ticker))
+        allfinancials = pd.concat([allfinancials,getfinancials(ticker)],axis=0)
+        
     except Exception as e:
         errors[ticker] = e
-
-print(f'finished getting data for each ticker')
-
-#%% putting all data into allfinancials
-
-print(f'putting data into allfinancials')
-# allfinancials = 
-
-# pd.DataFrame()
-# for x in finout:
-#     allfinancials = pd.concat([allfinancials,x],axis=0)
-allfinancials = pd.concat(finout,axis=0)
-
+        
+    
 
 allfinancials['date_sort'] = pd.to_datetime([x[1] for x in allfinancials.index])
 allfinancials.sort_values(by='date_sort',inplace=True,ascending=True)
 
 
 
+print('finished getting data for each ticker')
 
-
-
-#%%
-def getcolnames(hint,data=allfinancials,missper = False):
-    out = [x for x in data.columns if hint.lower() in x.lower()]
-    out.sort()
-    if missper == True:
-        return data[out].isnull().mean().sort_values()
-    return out
-    
-
-def gettotals(cols,maxvals=True,data=allfinancials,ticker=None):
-    if maxvals == True:
-        data = data[cols].max(axis=1)
-    else:
-        data = data[cols]
-    if ticker == None:
-        return data.sort_index(ascending=True)
-    else:
-        return data.loc[ticker].sort_index(ascending=True)
 
 
 #%% #Adding in BLS data
@@ -449,7 +439,7 @@ series_naics = naics_sec_mapper[['seriesID','NAICS Code(1)']].loc[naics_sec_mapp
 
 notin = [x for x in naicslist if x not in series_naics['NAICS Code(1)'].values]
 if len(notin) > 0:
-    print(f'The following naics are not in the mapping and are potentially out of date:')
+    print('The following naics are not in the mapping and are potentially out of date:')
     print(notin)
 serieslist = list(series_naics['seriesID'])
 
