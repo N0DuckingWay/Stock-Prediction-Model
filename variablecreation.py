@@ -174,7 +174,6 @@ def getdata(alldata,url,valname,period,reset_month = False,chg=False,growth=Fals
 finalfinancials = pd.DataFrame(index=allfinancials_merged.index)
 finalfinancials.index.set_names(['ticker','date'],inplace=True)
 
-finalfinancials['Cash'] = allfinancials_merged.CashAndCashEquivalentsAtCarryingValue.fillna(allfinancials_merged.Cash)
 finalfinancials['industry_employment_growth'] =  allfinancials_merged['industry_employment_growth']
 
 finalfinancials['LTDebt'] = (allfinancials_merged['LongTermDebt']).fillna(allfinancials_merged['LongTermDebtNoncurrent'])
@@ -315,9 +314,7 @@ finalfinancials['EBITDA_PS'] = pershare('EBITDA')
 finalfinancials['EBIT_PS'] = pershare('EBIT')
 finalfinancials['CFO_PS'] = pershare('CFO')
 finalfinancials['REV_PS'] = pershare('Revenue')
-finalfinancials['CurrAss_PS'] = pershare('CurrAssets')
-finalfinancials['CurrLiab_PS'] = pershare('CurrLiab')
-finalfinancials['Cash_PS'] = pershare('Cash')
+
 finalfinancials['Assets_PS'] = pershare('Assets')
 
 finalfinancials['MarketCap'] = finalfinancials.price*finalfinancials.CommonStockSharesOutstanding
