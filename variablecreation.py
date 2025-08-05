@@ -209,40 +209,40 @@ finalfinancials = feddata('ADPWINDOTHSRVNERSA','adp_otherservices_payrolls','wee
 
 #PPI data
 finalfinancials = feddata('PCUOMFGOMFG','ppi_total','monthly',reset_month=True,change=True, pctchange=True,source='fred')
-
+print('done pulling payroll data')
 #all manufacturing naics codes
 manufacturing = allfinancials.loc[allfinancials.naics_code.astype(str).str[:2].isin(['31','32','33'])][['naics_code','sic_desc']].drop_duplicates(subset='naics_code')
 man_naics = [str(int(x)) for x in manufacturing['naics_code']]
 man_desc = list(manufacturing['sic_desc'])
 
-
-for i in range(len(man_naics)):
-    naics = man_naics[i]
-    try:
+# print('pulling ppi data')
+# for i in range(len(man_naics)):
+#     naics = man_naics[i]
+#     try:
         
-        naics_used = naics
-        finalfinancials = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred')    
-    except:
-        try:
-            naics_used = naics[:-1]
-            finalfinancials = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred')
-        except:
-            try:
-                naics_used = naics[:-2]
-                finalfinancials = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred')
-            except:
-                try:
-                    naics_used = naics[:-3]
-                    finalfinancials = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred')
-                except:
-                    try:
-                        naics_used = naics[:-4]
-                        finalfinancials = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred')
-                    except:
-                        print(f'naics {naics} not in ppi data')
+#         naics_used = naics
+#         finalfinancials = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred')    
+#     except:
+#         try:
+#             naics_used = naics[:-1]
+#             finalfinancials = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred')
+#         except:
+#             try:
+#                 naics_used = naics[:-2]
+#                 finalfinancials = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred')
+#             except:
+#                 try:
+#                     naics_used = naics[:-3]
+#                     finalfinancials = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred')
+#                 except:
+#                     try:
+#                         naics_used = naics[:-4]
+#                         finalfinancials = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred')
+#                     except:
+#                         print(f'naics {naics} not in ppi data')
 
 
-
+# print('done creating all in one ppi')
       
 
 
