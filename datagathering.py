@@ -7,7 +7,7 @@ Created on Wed Jun  4 14:35:32 2025
 """
 
 from sec_cik_mapper import StockMapper
-import pandas as pd, urllib3 as url, json, sys, requests, warnings, numpy as np
+import pandas as pd, urllib3 as url, json, sys, requests, warnings, numpy as np, datetime
 
 # To ignore all warnings
 warnings.filterwarnings("ignore")
@@ -230,36 +230,46 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
         
         
     try:
-        saved = 0
-        for key in financials.keys():
+        # saved = 0
+        keep=['LongTermDebt','LongTermDebtNoncurrent','LongTermDebtCurrent','DebtCurrent','LongTermDebtAndCapitalLeaseObligationsCurrent',
+              'ShortTermBorrowings','OtherShortTermBorrowings','LTDebt','CurrLTDebt','STDebt','Revenues','RevenueFromContractWithCustomerIncludingAssessedTax','RevenueFromContractWithCustomerExcludingAssessedTax',
+              'SalesRevenueNet','AccumulatedDepreciationDepletionAndAmortizationPropertyPlantAndEquipment','DepreciationDepletionAndAmortization','Depreciation','DepreciationAndAmortization',
+              'PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization','InterestExpense','IncomeTaxExpenseBenefit',
+              'NetIncomeLoss','ProfitLoss','IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest',
+              'IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments',
+              'NetCashProvidedByUsedInOperatingActivities','NetCashProvidedByUsedInOperatingActivitiesContinuingOperations','NetCashProvidedByUsedInContinuingOperations',
+              'Assets','AssetsCurrent','AssetsNoncurrent','4. close','CommonStockSharesOutstanding','EntityCommonStockSharesOutstanding',
+              'sector','industry','naics_code','sic_code','sic_desc','date']
+        for key in keep:
+            if key in financials.keys():
             
-            if 'USD' in financials[key]['units'].keys():
-                # print(f'"USD" in {key}')
-                if len([x for x in ['cash','accounts','asset','liab','debt','borrowing','accrued','accumulated','paidin'] if x.lower() in key.lower() and 'usedin' not in key.lower()]):
-                    sheet = 'Balance'
-                elif ('cash' in key.lower() and 'usedin' in key.lower()) or ('depreciation' in key.lower() and 'accumulated' not in key.lower()):
-                    sheet = 'CashFlow'
-                else:
-                    sheet = 'Income'
-                data = dataclean(financials,key,sheet=sheet)
+                if 'USD' in financials[key]['units'].keys():
+                    # print(f'"USD" in {key}')
+                    if len([x for x in ['cash','accounts','asset','liab','debt','borrowing','accrued','accumulated','paidin'] if x.lower() in key.lower() and 'usedin' not in key.lower()]):
+                        sheet = 'Balance'
+                    elif ('cash' in key.lower() and 'usedin' in key.lower()) or ('depreciation' in key.lower() and 'accumulated' not in key.lower()):
+                        sheet = 'CashFlow'
+                    else:
+                        sheet = 'Income'
+                    data = dataclean(financials,key,sheet=sheet)
+                    
+                    out_save = out.copy()
+                    out = pd.concat([out,data],axis=1)
+                    
+                elif key in ['CommonStockSharesOutstanding','CommonStockSharesIssued','PreferredStockSharesIssued',
+                'PreferredStockSharesOutstanding']:
+                    
+                    data = dataclean(financials,key,unit='shares',sheet='Shares')
+                    out_save = out.copy()
+                    out = pd.concat([out,data],axis=1)
                 
-                out_save = out.copy()
-                out = pd.concat([out,data],axis=1)
+                    
                 
-            elif key in ['CommonStockSharesOutstanding','CommonStockSharesIssued','PreferredStockSharesIssued',
-            'PreferredStockSharesOutstanding']:
                 
-                data = dataclean(financials,key,unit='shares',sheet='Shares')
-                out_save = out.copy()
-                out = pd.concat([out,data],axis=1)
-            
-                
-            
-            
-            if 'LineOfCreditFacilityCurrentBorrowingCapacity' in out.columns and saved == 0:
-                out_init = out_save.copy()
-                data_init = data.copy()
-                saved = 1
+                # if 'LineOfCreditFacilityCurrentBorrowingCapacity' in out.columns and saved == 0:
+                #     out_init = out_save.copy()
+                #     data_init = data.copy()
+                #     saved = 1
             
         out['ticker'] = ticker
         out['date'] = out.index
@@ -319,15 +329,7 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
     except KeyError as e:
         raise KeyError(f'{e}. Ticker symbol: {ticker}. Key: {key}')
     
-    keep=['LongTermDebt','LongTermDebtNoncurrent','LongTermDebtCurrent','DebtCurrent','LongTermDebtAndCapitalLeaseObligationsCurrent',
-          'ShortTermBorrowings','OtherShortTermBorrowings','LTDebt','CurrLTDebt','STDebt','Revenues','RevenueFromContractWithCustomerIncludingAssessedTax','RevenueFromContractWithCustomerExcludingAssessedTax',
-          'SalesRevenueNet','AccumulatedDepreciationDepletionAndAmortizationPropertyPlantAndEquipment','DepreciationDepletionAndAmortization','Depreciation','DepreciationAndAmortization',
-          'PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization','InterestExpense','IncomeTaxExpenseBenefit',
-          'NetIncomeLoss','ProfitLoss','IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest',
-          'IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments',
-          'NetCashProvidedByUsedInOperatingActivities','NetCashProvidedByUsedInOperatingActivitiesContinuingOperations','NetCashProvidedByUsedInContinuingOperations',
-          'Assets','AssetsCurrent','AssetsNoncurrent','4. close','CommonStockSharesOutstanding','EntityCommonStockSharesOutstanding',
-          'sector','industry','naics_code','sic_code','sic_desc','date']
+    
     
     dropcols = [x for x in out_final.columns if x not in keep]
     out_final_dropped = out_final.drop(columns=dropcols)
@@ -349,10 +351,23 @@ allfinancials = pd.DataFrame()
 
 print(f'Getting data for {len(tickers)} tickers. This may take a while.')
 tickerlen = len(tickers)
+start = datetime.datetime.now()
 for i in range(tickerlen):
     ticker = tickers[i]
-    if i % 50 == 0:
-        print(f'Gathering financial data for {ticker}. Ticker {i} out of {tickerlen}. {round(100*i/tickerlen,2)}% done gathering financial information.')
+    if (i % 50 == 0 and i > 0) or (i == 1):
+        now = datetime.datetime.now()
+        diff = now-start
+        pctdec = i/tickerlen
+        end = start + diff/pctdec
+        left = end - now
+        hourspassed = int(diff.seconds/(60*60))
+        minutespassed = int((diff.seconds/60)-hourspassed*60)
+        
+        hoursleft = int(left.seconds/(60*60))
+        minutesleft = round((left.seconds/60)-hoursleft*60)
+        print(f'Gathering financial data for {ticker}. Ticker {i} out of {tickerlen}. {round(100*pctdec,2)}% done gathering financial information.')
+        print(f'{hourspassed} hrs, {minutespassed} minutes have passed. Estimated {hoursleft} hrs, {minutesleft} minutes until finished.')
+        print(f'Estimated finish time: {end}\n\n')
     try:
         allfinancials = pd.concat([allfinancials,getfinancials(ticker)],axis=0)
         
