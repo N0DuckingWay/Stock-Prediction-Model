@@ -7,7 +7,7 @@ Created on Wed Jun  4 14:35:32 2025
 """
 
 from sec_cik_mapper import StockMapper
-import pandas as pd, urllib3 as url, json, sys, requests, warnings
+import pandas as pd, urllib3 as url, json, sys, requests, warnings, numpy as np
 
 # To ignore all warnings
 warnings.filterwarnings("ignore")
@@ -189,7 +189,7 @@ def merger(indata):
 
 
     
-def getfinancials(ticker):
+def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64('1999-01-01')):
     '''
     Gets financials from the SEC EDGAR API when given the ticker symbol for a company
 
@@ -204,7 +204,7 @@ def getfinancials(ticker):
 
     '''
     
-    
+    global out_final
     
     cik = mapper.ticker_to_cik[ticker]
     response = json.loads(http.request("GET",f'https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json').data)
@@ -312,6 +312,8 @@ def getfinancials(ticker):
         out_final['sic_desc'] = sic_desc
         out_final['naics_code'] = getnaics(siccode)
         
+        out_final = out_final.loc[out_final.index.get_level_values(1) <= maxdate]
+        out_final = out_final.loc[out_final.index.get_level_values(1) >= mindate]
         
         
     except KeyError as e:
@@ -323,14 +325,14 @@ def getfinancials(ticker):
           'PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization','InterestExpense','IncomeTaxExpenseBenefit',
           'NetIncomeLoss','ProfitLoss','IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest',
           'IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments',
-          'NetCashProvidedByUsedInOperatingActivities','NetCashProvidedByUsedInOperatingActivitiesContinuingOperations','NetCashProvidedByUsedInContinuingOperations'
+          'NetCashProvidedByUsedInOperatingActivities','NetCashProvidedByUsedInOperatingActivitiesContinuingOperations','NetCashProvidedByUsedInContinuingOperations',
           'Assets','AssetsCurrent','AssetsNoncurrent','AssetsCurrent','LiabilitiesCurrent','4. close','CommonStockSharesOutstanding','EntityCommonStockSharesOutstanding',
           'sector','industry','naics_code','sic_code','sic_desc','date','CashAndCashEquivalentsAtCarryingValue']
     
     dropcols = [x for x in out_final.columns if x not in keep]
-    out_final = out_final.drop(columns=dropcols)
+    out_final_dropped = out_final.drop(columns=dropcols)
     
-    out_final = out_final.dropna(axis=1,how='all')
+    out_final_dropped = out_final_dropped.dropna(axis=1,how='all')
     return out_final
 
 mapper = StockMapper()
@@ -395,9 +397,11 @@ errors = {}
 allfinancials = pd.DataFrame()
 
 print(f'Getting data for {len(tickers)} tickers. This may take a while.')
-for i in range(len(tickers)):
+tickerlen = len(tickers)
+for i in range(tickerlen):
     ticker = tickers[i]
-    print(f'Gathering financial data for {ticker}. Ticker {i} out of {len(tickers)}. {round(100*i/len(tickers),2)}% done gathering financial information.')
+    if i % 50 == 0:
+        print(f'Gathering financial data for {ticker}. Ticker {i} out of {tickerlen}. {round(100*i/tickerlen,2)}% done gathering financial information.')
     try:
         allfinancials = pd.concat([allfinancials,getfinancials(ticker)],axis=0)
         
@@ -412,6 +416,8 @@ allfinancials.sort_values(by='date_sort',inplace=True,ascending=True)
 
 
 print('finished getting data for each ticker')
+
+print(f'\nWARNING: {len(errors)} errors detected!')
 
 allfinancials.to_pickle('Data/allfinancials.p')
 
