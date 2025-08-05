@@ -319,15 +319,15 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
     except KeyError as e:
         raise KeyError(f'{e}. Ticker symbol: {ticker}. Key: {key}')
     
-    keep=['Cash','LongTermDebt','LongTermDebtNoncurrent','LongTermDebtCurrent','DebtCurrent','LongTermDebtAndCapitalLeaseObligationsCurrent',
+    keep=['LongTermDebt','LongTermDebtNoncurrent','LongTermDebtCurrent','DebtCurrent','LongTermDebtAndCapitalLeaseObligationsCurrent',
           'ShortTermBorrowings','OtherShortTermBorrowings','LTDebt','CurrLTDebt','STDebt','Revenues','RevenueFromContractWithCustomerIncludingAssessedTax','RevenueFromContractWithCustomerExcludingAssessedTax',
           'SalesRevenueNet','AccumulatedDepreciationDepletionAndAmortizationPropertyPlantAndEquipment','DepreciationDepletionAndAmortization','Depreciation','DepreciationAndAmortization',
           'PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization','InterestExpense','IncomeTaxExpenseBenefit',
           'NetIncomeLoss','ProfitLoss','IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest',
           'IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments',
           'NetCashProvidedByUsedInOperatingActivities','NetCashProvidedByUsedInOperatingActivitiesContinuingOperations','NetCashProvidedByUsedInContinuingOperations',
-          'Assets','AssetsCurrent','AssetsNoncurrent','AssetsCurrent','LiabilitiesCurrent','4. close','CommonStockSharesOutstanding','EntityCommonStockSharesOutstanding',
-          'sector','industry','naics_code','sic_code','sic_desc','date','CashAndCashEquivalentsAtCarryingValue']
+          'Assets','AssetsCurrent','AssetsNoncurrent','4. close','CommonStockSharesOutstanding','EntityCommonStockSharesOutstanding',
+          'sector','industry','naics_code','sic_code','sic_desc','date']
     
     dropcols = [x for x in out_final.columns if x not in keep]
     out_final_dropped = out_final.drop(columns=dropcols)
