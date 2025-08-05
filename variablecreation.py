@@ -5,7 +5,9 @@ Created on Mon Aug  4 17:38:29 2025
 
 @author: zdhoffman
 """
-import pandas as pd, requests, json
+import pandas as pd, requests, json, os
+
+os.chdir('/Users/zdhoffman/Documents/Coding Projects/Stock Market Model/')
 
 
 stockkey = 'GJT87YF8QI5GZUND'
@@ -81,7 +83,8 @@ allfinancials_merged = pd.merge_asof(allfinancials,formatted,left_on='date',righ
 allfinancials_merged.set_index(['ticker','date'],inplace=True)
 #%% creating summary values
 print('adding in computed variables and other economic data')
-def getdata(alldata,url,valname,period,reset_month = False,chg=False,growth=False, source='bls'):
+def getdata(alldata,url,valname,period,reset_month = False,chg=False,growth=False, source='bls',merge=True):
+    global newdata, outdata, moddata
     print(f'pulling data for {valname}.')
     moddata = alldata.copy()
     moddata['date_sort'] = pd.to_datetime([x[1] for x in moddata.index])
@@ -143,25 +146,29 @@ def getdata(alldata,url,valname,period,reset_month = False,chg=False,growth=Fals
         if period == 'monthly':
             newdata[valname+'_pctdiff_quarterly'] = newdata[valname].pct_change(periods=4)
     moddata.sort_values(by='date_sort',ascending=True,inplace=True)
-    outdata = pd.merge_asof(moddata,newdata,left_on='date_sort',right_index=True,tolerance = tolerance)
-    outdata.sort_index(ascending=True,inplace=True)
-    outdata[valname] = outdata[valname].groupby('ticker').ffill()
-    
-    if chg == True:
-        for c in outdata.columns:
-            if '_diff_' in c:
-                outdata[c] = outdata[c].groupby('ticker').ffill()
-            
-    if growth == True:    
-        for c in outdata.columns:
-            if '_pctdiff_' in c:
-                outdata[c] = outdata[c].groupby('ticker').ffill()
+    #this is mostly for bug fixing, by allowing the output to not be merged with moddata
+    if merge == True:
+        outdata = pd.merge_asof(moddata,newdata,left_on='date_sort',right_index=True,tolerance = tolerance)
+        outdata.sort_index(ascending=True,inplace=True)
+        outdata[valname] = outdata[valname].groupby('ticker').ffill()
+        
+        if chg == True:
+            for c in outdata.columns:
+                if '_diff_' in c:
+                    outdata[c] = outdata[c].groupby('ticker').ffill()
+                
+        if growth == True:    
+            for c in outdata.columns:
+                if '_pctdiff_' in c:
+                    outdata[c] = outdata[c].groupby('ticker').ffill()
     
     
         
         
         
-    return outdata.drop(columns='date_sort')
+        return outdata.drop(columns='date_sort')
+    else:
+        return newdata
 
 
 finalfinancials = pd.DataFrame(index=allfinancials_merged.index)
@@ -169,82 +176,6 @@ finalfinancials.index.set_names(['ticker','date'],inplace=True)
 
 finalfinancials['Cash'] = allfinancials_merged.CashAndCashEquivalentsAtCarryingValue.fillna(allfinancials_merged.Cash)
 finalfinancials['industry_employment_growth'] =  allfinancials_merged['industry_employment_growth']
-
-finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=TREASURY_YIELD&interval=daily&maturity=1mo&apikey={stockkey}','treasury_yield','daily',chg=True)
-finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=WTI&interval=daily&apikey={stockkey}','wti_crude_price','daily',growth=True)
-finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=ALL_COMMODITIES&interval=monthly&apikey={stockkey}','commodity_index','monthly',reset_month=True,growth=True)
-finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=REAL_GDP&interval=quarterly&apikey={stockkey}','real_gdp','quarterly',reset_month=True,growth=True)
-finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=FEDERAL_FUNDS_RATE&interval=daily&apikey={stockkey}','fed_funds_rate','daily',chg=True)
-finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=CPI&interval=monthly&apikey={stockkey}','cpi','monthly',reset_month=True,growth=True)
-finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=RETAIL_SALES&apikey={stockkey}','retail_sales','monthly',reset_month=True,growth=True)
-finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=DURABLES&apikey={stockkey}','durable_goods_orders','monthly',reset_month=True,growth=True)
-finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=UNEMPLOYMENT&apikey={stockkey}','unemployment','monthly',reset_month=True,chg=True)
-finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=NONFARM_PAYROLL&apikey={stockkey}','nonfarm_payroll','monthly',reset_month=True,growth=True)
-
-feddata = lambda series,name,period,reset_month,change,pctchange,source: getdata(finalfinancials,f'https://api.stlouisfed.org/fred/series/observations?series_id={series}&api_key={fredkey}&file_type=json',name,period,reset_month=reset_month,chg=change, growth=pctchange,source=source)
-
-#Consumer Sentiment Data
-finalfinancials = feddata('UMCSENT','consumer_sentiment','monthly',reset_month=True,change=True, pctchange=True,source='fred')
-
-
-#ADP data
-finalfinancials = feddata('ADPWNUSNERSA','adp_private_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
-finalfinancials = feddata('ADPWINDMANNERSA','adp_manufacturing_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
-finalfinancials = feddata('ADPWINDCONNERSA','adp_construction_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
-finalfinancials = feddata('ADPWINDINFONERSA','adp_information_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
-finalfinancials = feddata('ADPWINDLSHPNERSA','adp_hospitality_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
-finalfinancials = feddata('ADPWINDPROBUSNERSA','adp_profservices_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
-finalfinancials = feddata('ADPMINDEDHLTNERSA','adp_ed_health_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
-
-finalfinancials = feddata('ADPWES1T19ENERSA','adp_smallbiz_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
-finalfinancials = feddata('ADPWES500PENERSA','adp_largebiz_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
-finalfinancials = feddata('ADPWES250T499ENERSA','adp_medlargebiz_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
-
-
-finalfinancials = feddata('ADPWINDTTUNERSA','adp_trade_transport_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
-finalfinancials = feddata('ADPWINDFINNERSA','adp_financial_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
-finalfinancials = feddata('ADPWINDNRMINNERSA','adp_mining_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
-finalfinancials = feddata('ADPWINDOTHSRVNERSA','adp_otherservices_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
-
-
-#PPI data
-finalfinancials = feddata('PCUOMFGOMFG','ppi_total','monthly',reset_month=True,change=True, pctchange=True,source='fred')
-print('done pulling payroll data')
-#all manufacturing naics codes
-manufacturing = allfinancials.loc[allfinancials.naics_code.astype(str).str[:2].isin(['31','32','33'])][['naics_code','sic_desc']].drop_duplicates(subset='naics_code')
-man_naics = [str(int(x)) for x in manufacturing['naics_code']]
-man_desc = list(manufacturing['sic_desc'])
-
-# print('pulling ppi data')
-# for i in range(len(man_naics)):
-#     naics = man_naics[i]
-#     try:
-        
-#         naics_used = naics
-#         finalfinancials = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred')    
-#     except:
-#         try:
-#             naics_used = naics[:-1]
-#             finalfinancials = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred')
-#         except:
-#             try:
-#                 naics_used = naics[:-2]
-#                 finalfinancials = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred')
-#             except:
-#                 try:
-#                     naics_used = naics[:-3]
-#                     finalfinancials = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred')
-#                 except:
-#                     try:
-#                         naics_used = naics[:-4]
-#                         finalfinancials = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred')
-#                     except:
-#                         print(f'naics {naics} not in ppi data')
-
-
-# print('done creating all in one ppi')
-      
-
 
 finalfinancials['LTDebt'] = (allfinancials_merged['LongTermDebt']).fillna(allfinancials_merged['LongTermDebtNoncurrent'])
 finalfinancials['CurrLTDebt']= allfinancials_merged['LongTermDebtCurrent'].fillna(allfinancials_merged['DebtCurrent']).fillna(allfinancials_merged.LongTermDebtAndCapitalLeaseObligationsCurrent)
@@ -281,6 +212,85 @@ finalfinancials['CurrLiab'] = allfinancials_merged.LiabilitiesCurrent
 finalfinancials['price'] = allfinancials_merged['4. close']
 finalfinancials['CommonStockSharesOutstanding'] = allfinancials_merged['CommonStockSharesOutstanding'].fillna(allfinancials_merged.EntityCommonStockSharesOutstanding)
 finalfinancials['CommonStockSharesOutstanding'] = finalfinancials['CommonStockSharesOutstanding'].groupby('ticker').ffill(3)
+
+finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=TREASURY_YIELD&interval=daily&maturity=1mo&apikey={stockkey}','treasury_yield','daily',chg=True)
+finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=WTI&interval=daily&apikey={stockkey}','wti_crude_price','daily',growth=True)
+finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=ALL_COMMODITIES&interval=monthly&apikey={stockkey}','commodity_index','monthly',reset_month=True,growth=True)
+finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=REAL_GDP&interval=quarterly&apikey={stockkey}','real_gdp','quarterly',reset_month=True,growth=True)
+finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=FEDERAL_FUNDS_RATE&interval=daily&apikey={stockkey}','fed_funds_rate','daily',chg=True)
+finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=CPI&interval=monthly&apikey={stockkey}','cpi','monthly',reset_month=True,growth=True)
+finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=RETAIL_SALES&apikey={stockkey}','retail_sales','monthly',reset_month=True,growth=True)
+finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=DURABLES&apikey={stockkey}','durable_goods_orders','monthly',reset_month=True,growth=True)
+finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=UNEMPLOYMENT&apikey={stockkey}','unemployment','monthly',reset_month=True,chg=True)
+finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=NONFARM_PAYROLL&apikey={stockkey}','nonfarm_payroll','monthly',reset_month=True,growth=True)
+
+feddata = lambda series,name,period,reset_month,change,pctchange,source,merge: getdata(finalfinancials,f'https://api.stlouisfed.org/fred/series/observations?series_id={series}&api_key={fredkey}&file_type=json',name,period,reset_month=reset_month,chg=change, growth=pctchange,source=source,merge=merge)
+
+#Consumer Sentiment Data
+finalfinancials = feddata('UMCSENT','consumer_sentiment','monthly',reset_month=True,change=True, pctchange=True,source='fred')
+
+finaldata_preadp = finalfinancials.copy()
+
+#ADP data
+finalfinancials = feddata('ADPWNUSNERSA','adp_private_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
+finalfinancials = feddata('ADPWINDMANNERSA','adp_manufacturing_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
+finalfinancials = feddata('ADPWINDCONNERSA','adp_construction_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
+finalfinancials = feddata('ADPWINDINFONERSA','adp_information_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
+finalfinancials = feddata('ADPWINDLSHPNERSA','adp_hospitality_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
+finalfinancials = feddata('ADPWINDPROBUSNERSA','adp_profservices_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
+finalfinancials = feddata('ADPMINDEDHLTNERSA','adp_ed_health_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
+
+finalfinancials = feddata('ADPWES1T19ENERSA','adp_smallbiz_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
+finalfinancials = feddata('ADPWES500PENERSA','adp_largebiz_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
+finalfinancials = feddata('ADPWES250T499ENERSA','adp_medlargebiz_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
+
+
+finalfinancials = feddata('ADPWINDTTUNERSA','adp_trade_transport_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
+finalfinancials = feddata('ADPWINDFINNERSA','adp_financial_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
+finalfinancials = feddata('ADPWINDNRMINNERSA','adp_mining_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
+finalfinancials = feddata('ADPWINDOTHSRVNERSA','adp_otherservices_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
+
+print('done pulling payroll data')
+
+#PPI data
+finalfinancials = feddata('PCUOMFGOMFG','ppi_total','monthly',reset_month=True,change=True, pctchange=True,source='fred')
+
+#all manufacturing naics codes
+manufacturing = allfinancials.loc[allfinancials.naics_code.astype(str).str[:2].isin(['31','32','33'])][['naics_code','sic_desc']].drop_duplicates(subset='naics_code')
+man_naics = [str(int(x)) for x in manufacturing['naics_code']]
+man_desc = list(manufacturing['sic_desc'])
+
+# print('pulling ppi data')
+# for i in range(len(man_naics)):
+#     naics = man_naics[i]
+#     try:
+        
+#         naics_used = naics
+#         finalfinancials = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred')    
+#     except:
+#         try:
+#             naics_used = naics[:-1]
+#             finalfinancials = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred')
+#         except:
+#             try:
+#                 naics_used = naics[:-2]
+#                 finalfinancials = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred')
+#             except:
+#                 try:
+#                     naics_used = naics[:-3]
+#                     finalfinancials = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred')
+#                 except:
+#                     try:
+#                         naics_used = naics[:-4]
+#                         finalfinancials = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred')
+#                     except:
+#                         print(f'naics {naics} not in ppi data')
+
+
+# print('done creating all in one ppi')
+      
+
+
 
 finalfinancials = finalfinancials.astype(float)
 finalfinancials.dropna(subset='NI',inplace=True)
