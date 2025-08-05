@@ -204,7 +204,7 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
 
     '''
     
-    global out_final
+    
     
     cik = mapper.ticker_to_cik[ticker]
     response = json.loads(http.request("GET",f'https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json').data)
@@ -338,55 +338,6 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
 mapper = StockMapper()
 #%%
 
-
-
-# tickers = '''ADBE
-# AMD
-# GOOGL
-# GOOG
-# ADI
-# ANSS
-# AAPL
-# AMAT
-# APP
-# ARM
-# ASML
-# TEAM
-# ADSK
-# AVGO
-# CDNS
-# CDW
-# CHTR
-# CTSH
-# CRWD
-# DDOG
-# DOCU
-# FTNT
-# INTU
-# KLAC
-# LRCX
-# MCHP
-# MU
-# MSFT
-# MRVL
-# META
-# NFLX
-# NVDA
-# NXPI
-# ON
-# PANW
-# PYPL
-# QCOM
-# ROP
-# SHOP
-# SNPS
-# TSLA
-# TXN
-# TTD
-# WDAY
-# ZS
-# '''.split('\n')
-# tickers = [x for x in tickers if len(x) > 0 and x not in ['ARM','ASML']] #excluded for the moment as a foreign issuer
 
 tickerlist = pd.read_excel('tickers.xlsx',header=1)['Ticker']
 
