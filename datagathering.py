@@ -6,7 +6,7 @@ Created on Wed Jun  4 14:35:32 2025
 @author: zdhoffman
 """
 
-from sec_cik_mapper import StockMapper
+from get_cik_from_ticker import get_cik_for_ticker
 import pandas as pd, urllib3 as url, json, sys, requests, warnings, numpy as np, datetime
 
 # To ignore all warnings
@@ -203,10 +203,10 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
     Pandas dataframe containing all financial information.
 
     '''
+    global companyrequest
     
     
-    
-    cik = mapper.ticker_to_cik[ticker]
+    cik = get_cik_for_ticker(ticker)
     response = json.loads(http.request("GET",f'https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json').data)
     
     
@@ -289,8 +289,14 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
             
         if companyrequest.status_code == 200:
             js = companyrequest.json()
-            sector = js['Sector']
-            industry = js['Industry']
+            if 'Sector' in js.keys():
+                sector = js['Sector']
+            else:
+                sector = np.nan
+            if 'Industry' in js.keys():
+                industry = js['Industry']
+            else:
+                industry = np.nan
         else:
             raise Exception(f'Request failed. Details: {companyrequest}')
             
@@ -337,7 +343,7 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
     out_final_dropped = out_final_dropped.dropna(axis=1,how='all')
     return out_final
 
-mapper = StockMapper()
+
 #%%
 
 
