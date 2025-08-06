@@ -197,7 +197,7 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
     Pandas dataframe containing all financial information.
 
     '''
-    global response
+    global response, stockrequest
     
     
     cik = get_cik_for_ticker(ticker)
@@ -410,6 +410,7 @@ allfinancials.sort_values(by='date_sort',inplace=True,ascending=True)
 print('finished getting data for each ticker')
 
 print(f'\nWARNING: {len(errors)} errors detected!')
+allfinancials['currency'] = allfinancials.groupby(level=0).currency.ffill().bfill()
 
 allfinancials.to_pickle('Data/allfinancials.p')
 
