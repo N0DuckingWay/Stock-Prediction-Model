@@ -54,7 +54,7 @@ getvar = lambda testdata, test : [x for x in testdata.keys() if test.lower() in 
 
 def trackdown(dictionary, value,hint = None, outlist = [],recur=0):
     '''
-    Tracks down the sequence of keys in a dictionary that leads to a known value
+    Utility function. Tracks down the sequence of keys in a dictionary that leads to a known value
 
     Parameters
     ----------
@@ -97,19 +97,20 @@ def trackdown(dictionary, value,hint = None, outlist = [],recur=0):
 
 
 def dataclean(data,key,unit='USD',newcol = None,form='10-Q',sheet='Income'):
-    
-    formcopy = form
-    
+    '''
+    Cleans data for use in getfinancials. Also can compute Q4 values that are usually reported as FY values.
+
+
+    '''
+  
     
     if newcol == None:
         newcol = key
         
-    data_orig = data[key]['units'][unit].copy()
-    
+   
         
     df = pd.DataFrame(data[key]['units'][unit]).rename(columns={'val':newcol}).set_index('end')
     df = df.loc[df.form==form]
-    df_noedit= df.copy()
     if len(df) > 0 and form == '10-K':
         if 'start' in df.columns and 'frame' in df.columns:
             df = df.loc[((pd.to_datetime(df.start)-pd.to_datetime(df.index)).dt.days >= -380) & ((pd.to_datetime(df.start)-pd.to_datetime(df.index)).dt.days <= -360) & ~(df.frame.astype(str).str.contains('Q'))]
@@ -118,8 +119,6 @@ def dataclean(data,key,unit='USD',newcol = None,form='10-Q',sheet='Income'):
         elif 'frame' in df.columns:
             df = df.loc[~(df.frame.astype(str).str.contains('Q'))]
         
-    # if 'frame' in df.columns and len(df.dropna(subset='frame')) != 0:
-    #     df = df.dropna(subset='frame')
         
     if form == '10-Q':
         if 'start' in df.columns and sheet == 'Income':
@@ -141,12 +140,7 @@ def dataclean(data,key,unit='USD',newcol = None,form='10-Q',sheet='Income'):
             nine = nine.drop_duplicates(subset=['start','end',newcol])
             ninenew = nine.groupby('year')[[newcol]].sum()
             ninenew.index = ninenew.index.astype(float)
-            # ninenew_merged = pd.merge(ninenew,year[['year','yearend']],left_index=True,right_on = 'year')
-            # ninenew_merged.index = ninenew_merged.year
-            
-            # ninenew_merged['date'] = ninenew_merged.yearend
-                    
-            # finalq = year.groupby('year').sum()[[newcol]]-ninenew_merged[[newcol]]
+
             finalq = year.groupby('year').sum()[[newcol]].fillna(0).sub(ninenew[[newcol]].fillna(0),fill_value=0)
             finalq_merged = pd.merge(finalq,year[['yearend','year']],left_index=True,right_on='year')
             finalq_merged.index = finalq_merged['yearend']
