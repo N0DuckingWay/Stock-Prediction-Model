@@ -197,7 +197,7 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
     Pandas dataframe containing all financial information.
 
     '''
-    global companyrequest
+    global response
     
     
     cik = get_cik_for_ticker(ticker)
@@ -208,16 +208,22 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
     
         
         
-    financials = response['facts']['us-gaap']
+    if 'us-gaap' in response['facts'].keys():
+        financials = response['facts']['us-gaap']
+    else:
+        financials = response['facts']['ifrs-full']
     out = pd.DataFrame()
     
-    dei = response['facts']['dei']
-    if 'EntityCommonStockSharesOutstanding' in dei.keys():
-        ecsso = pd.DataFrame(response['facts']['dei']['EntityCommonStockSharesOutstanding']['units']['shares'])
-        ecsso = ecsso.sort_values(by=['end','filed'],ascending=True)
-        ecsso = ecsso.groupby('end').last()
-        ecsso = ecsso[['val']].rename(columns={'val':'EntityCommonStockSharesOutstanding'}).drop_duplicates()
-        out = pd.concat([out,ecsso],axis=1)
+    if 'dei' in response['facts']:
+        dei = response['facts']['dei']
+        if 'EntityCommonStockSharesOutstanding' in dei.keys():
+            ecsso = pd.DataFrame(response['facts']['dei']['EntityCommonStockSharesOutstanding']['units']['shares'])
+            ecsso = ecsso.sort_values(by=['end','filed'],ascending=True)
+            ecsso = ecsso.groupby('end').last()
+            ecsso = ecsso[['val']].rename(columns={'val':'EntityCommonStockSharesOutstanding'}).drop_duplicates()
+            out = pd.concat([out,ecsso],axis=1)
+        else:
+            ecsso = pd.DataFrame()
     else:
         ecsso = pd.DataFrame()
                 
@@ -234,10 +240,28 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
               'NetCashProvidedByUsedInOperatingActivities','NetCashProvidedByUsedInOperatingActivitiesContinuingOperations','NetCashProvidedByUsedInContinuingOperations',
               'Assets','AssetsCurrent','AssetsNoncurrent','4. close','CommonStockSharesOutstanding','EntityCommonStockSharesOutstanding',
               'sector','industry','naics_code','sic_code','sic_desc','date']
+        currencies = []
         for key in keep:
             if key in financials.keys():
             
                 if 'USD' in financials[key]['units'].keys():
+                    currency = 'USD'
+                elif 'GBP' in financials[key]['units'].keys():
+                    currency = 'GBP'
+                elif 'EUR' in financials[key]['units'].keys():
+                    currency = 'EUR'
+                elif 'CAD' in financials[key]['units'].keys():
+                    currency = 'CAD'
+                elif 'JPY' in financials[key]['units'].keys():
+                    currency = 'JPY'
+                elif 'HKD' in financials[key]['units'].keys():
+                    currency = 'HKD'
+                elif 'RMB' in financials[key]['units'].keys():
+                    currency = 'RMB'
+                else:
+                    currency = None
+                currencies.append(currency)
+                if currency != None:
                     # print(f'"USD" in {key}')
                     if len([x for x in ['cash','accounts','asset','liab','debt','borrowing','accrued','accumulated','paidin'] if x.lower() in key.lower() and 'usedin' not in key.lower()]):
                         sheet = 'Balance'
@@ -245,16 +269,14 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
                         sheet = 'CashFlow'
                     else:
                         sheet = 'Income'
-                    data = dataclean(financials,key,sheet=sheet)
+                    data = dataclean(financials,key,unit=currency, sheet=sheet)
                     
-                    out_save = out.copy()
                     out = pd.concat([out,data],axis=1)
                     
                 elif key in ['CommonStockSharesOutstanding','CommonStockSharesIssued','PreferredStockSharesIssued',
                 'PreferredStockSharesOutstanding']:
                     
                     data = dataclean(financials,key,unit='shares',sheet='Shares')
-                    out_save = out.copy()
                     out = pd.concat([out,data],axis=1)
                 
                     
@@ -264,9 +286,11 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
                 #     out_init = out_save.copy()
                 #     data_init = data.copy()
                 #     saved = 1
-            
+        currencies = pd.Series(currencies)
         out['ticker'] = ticker
         out['date'] = out.index
+        if len(currencies) > 0:
+            out['currency'] = currencies.value_counts().sort_values(ascending=False).index[0]
 
         
         #getting stock data
@@ -308,7 +332,6 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
         out['date'] = pd.to_datetime(out['date'])
         stockdata.index = pd.to_datetime(stockdata.index)
         
-        outmerge = out.copy()
         tolerance = pd.to_timedelta('3D')
         out_final = pd.merge_asof(out,stockdata,left_on='date',right_index=True,tolerance=tolerance)
         
@@ -344,7 +367,7 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
 tickerlist = pd.read_excel('tickers.xlsx',header=1)['Ticker']
 
 tickers = list(tickerlist)
-# ciks = pd.Series(mapper.ticker_to_cik).loc[tickers]
+
 errors = {}
 collect = []
 allfinancials = pd.DataFrame()
@@ -368,6 +391,8 @@ for i in range(tickerlen):
         print(f'Gathering financial data for {ticker}. Ticker {i} out of {tickerlen}. {round(100*pctdec,2)}% done gathering financial information.')
         print(f'{hourspassed} hrs, {minutespassed} minutes have passed. Estimated {hoursleft} hrs, {minutesleft} minutes until finished.')
         print(f'Estimated finish time: {end}\n\n')
+
+
     try:
         collect.append(getfinancials(ticker))
         
