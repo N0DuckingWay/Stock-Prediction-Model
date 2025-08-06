@@ -16,6 +16,11 @@ fredkey = '84a26b17b51a63ed7dae3c7936a19d02'
 
 #%%
 allfinancials = pd.read_pickle('Data/allfinancials.p')
+#%%
+
+##Only here because getfinancials.py does not have the ability to convert currencies yet.
+
+allfinancials = allfinancials.loc[allfinancials.currency == 'USD']
 
 #%% #Adding in BLS data
 headers = {'Content-type': 'application/json'}
