@@ -346,7 +346,7 @@ tickerlist = pd.read_excel('tickers.xlsx',header=1)['Ticker']
 tickers = list(tickerlist)
 # ciks = pd.Series(mapper.ticker_to_cik).loc[tickers]
 errors = {}
-
+collect = []
 allfinancials = pd.DataFrame()
 
 print(f'Getting data for {len(tickers)} tickers. This may take a while.')
@@ -369,12 +369,13 @@ for i in range(tickerlen):
         print(f'{hourspassed} hrs, {minutespassed} minutes have passed. Estimated {hoursleft} hrs, {minutesleft} minutes until finished.')
         print(f'Estimated finish time: {end}\n\n')
     try:
-        allfinancials = pd.concat([allfinancials,getfinancials(ticker)],axis=0)
+        collect.append(getfinancials(ticker))
         
     except Exception as e:
         errors[ticker] = e
         
-    
+print('Done gathering data, concatenating now')
+allfinancials = pd.concat(collect,axis=0)
 
 allfinancials['date_sort'] = pd.to_datetime([x[1] for x in allfinancials.index])
 allfinancials.sort_values(by='date_sort',inplace=True,ascending=True)
