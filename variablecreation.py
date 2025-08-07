@@ -225,9 +225,8 @@ finalfinancials['CFO'] = allfinancials_merged.NetCashProvidedByUsedInOperatingAc
 
 finalfinancials['Assets'] = allfinancials_merged.Assets.fillna(allfinancials_merged.AssetsCurrent+allfinancials_merged.AssetsNoncurrent)
 
-finalfinancials['CurrAssets'] = allfinancials_merged.AssetsCurrent
 
-finalfinancials['CurrLiab'] = allfinancials_merged.LiabilitiesCurrent
+
 finalfinancials['price'] = allfinancials_merged['4. close']
 finalfinancials['CommonStockSharesOutstanding'] = allfinancials_merged['CommonStockSharesOutstanding'].fillna(allfinancials_merged.EntityCommonStockSharesOutstanding)
 finalfinancials['CommonStockSharesOutstanding'] = finalfinancials['CommonStockSharesOutstanding'].groupby('ticker').ffill(3)
