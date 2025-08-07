@@ -238,7 +238,7 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
                   'NetIncomeLoss','ProfitLoss','IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest',
                   'IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments',
                   'NetCashProvidedByUsedInOperatingActivities','NetCashProvidedByUsedInOperatingActivitiesContinuingOperations','NetCashProvidedByUsedInContinuingOperations',
-                  'Assets','AssetsCurrent','AssetsNoncurrent','4. close','CommonStockSharesOutstanding','EntityCommonStockSharesOutstanding',
+                  'Assets','AssetsCurrent','AssetsNoncurrent','5. adjusted close', '7. dividend amount','CommonStockSharesOutstanding','EntityCommonStockSharesOutstanding',
                   'sector','industry','naics_code','sic_code','sic_desc','date']
             currencies = []
             for key in keep:
@@ -261,7 +261,11 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
                     elif 'RMB' in financials[key]['units'].keys():
                         currency = 'RMB'
                     else:
-                        currency = [x for x in financials[key]['units'] if 'shares' not in x][0]
+                        clist = [x for x in financials[key]['units'] if 'shares' not in x]
+                        if len(clist) > 0:
+                            currency = clist[0]
+                        else:
+                            currency = None
                     currencies.append(currency)
                     if currency != None:
                         # print(f'"USD" in {key}')
@@ -360,7 +364,7 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
         out_final_dropped = out_final.drop(columns=dropcols)
         
         out_final_dropped = out_final_dropped.dropna(axis=1,how='all')
-        return out_final
+        return out_final_dropped
 
 
 #%%
