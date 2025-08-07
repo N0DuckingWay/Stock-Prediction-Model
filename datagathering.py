@@ -244,7 +244,7 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
             for key in keep:
                 if key in financials.keys():
                     
-                    currencies.extend(clist)
+
                 
                     if 'USD' in financials[key]['units'].keys():
                         currency = 'USD'
@@ -348,7 +348,7 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
             out_final['naics_code'] = getnaics(siccode)
             
             out_final = out_final.loc[out_final.index.get_level_values(1) <= maxdate]
-            out_final = out_final.loc[out_final.index.get_level_values(1) >= mindate]
+            out_final = out_final.loc[(out_final.index.get_level_values(1) >= mindate) & (out_final.index.get_level_values(1).dayofweek <= 4)]
             
             
         except KeyError as e:
