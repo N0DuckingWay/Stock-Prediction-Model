@@ -26,19 +26,34 @@ allfinancials = allfinancials.loc[allfinancials.currency == 'USD']
 headers = {'Content-type': 'application/json'}
 print('getting BLS data')
 naics_sec_mapper = pd.read_excel('cesseriespub.xlsx',sheet_name='CES_Pub_NAICS_24',header=1)
-fixes = {454110.0:'455',
-         333314.0: '3333',
-         333316.0: '3333',
-         336111.0: '3361',
-         515210.0:'5162',
-         518210:'518',
-         312230.0:'312',
-         333310.0:'3333',
-         334220.0:'33422',
-         334614.0:'3346',
-         332410.0:'3324',
-         532282.0:'5322'}
-allfinancials['naics_code'] = allfinancials['naics_code'].replace(fixes)
+
+naics_indata = set(allfinancials.naics_code.dropna())
+naics_inmap = set(naics_sec_mapper['NAICS Code(1)'].dropna())
+getsec = lambda naics: naics_sec_mapper.loc[naics_sec_mapper['NAICS Code(1)'] == naics]['NAICS Code(1)'].values[0]
+naics_sec_map = {}
+for naics in naics_indata:
+    naics_str = str(int(naics))
+    if naics_str in naics_inmap:
+        naics_sec_map[naics] = getsec(naics_str)
+    elif naics_str[:-1] in naics_inmap:
+        naics_sec_map[naics] = getsec(naics_str[:-1])
+    elif naics_str[:-2] in naics_inmap:
+        naics_sec_map[naics] = getsec(naics_str[:-2])
+    elif naics_str[:-3] in naics_inmap:
+        naics_sec_map[naics] = getsec(naics_str[:-3])
+    elif naics_str[:-4] in naics_inmap:
+        naics_sec_map[naics] = getsec(naics_str[:-4])
+    elif naics_str[:-5] in naics_inmap:
+        naics_sec_map[naics] = getsec(naics_str[:-5])
+    elif naics_str[:-6] in naics_inmap:
+        naics_sec_map[naics] = getsec(naics_str[:-6])
+    
+
+
+fixes = {**naics_sec_map,454110.0:'455'}
+
+
+allfinancials['naics_code'] = allfinancials['naics_code'].map(fixes)
 naicslist = [str(int(x)) for x in set(allfinancials.naics_code.dropna())]
 
 naics_sec_mapper['seriesID'] = 'CES'+naics_sec_mapper['CES Industry Code'].str.replace('-','')+'01'
