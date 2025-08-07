@@ -206,159 +206,161 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
     
    
     
-        
-        
-    if 'us-gaap' in response['facts'].keys():
-        financials = response['facts']['us-gaap']
-    else:
-        financials = response['facts']['ifrs-full']
-    out = pd.DataFrame()
-    
-    if 'dei' in response['facts']:
-        dei = response['facts']['dei']
-        if 'EntityCommonStockSharesOutstanding' in dei.keys():
-            ecsso = pd.DataFrame(response['facts']['dei']['EntityCommonStockSharesOutstanding']['units']['shares'])
-            ecsso = ecsso.sort_values(by=['end','filed'],ascending=True)
-            ecsso = ecsso.groupby('end').last()
-            ecsso = ecsso[['val']].rename(columns={'val':'EntityCommonStockSharesOutstanding'}).drop_duplicates()
-            out = pd.concat([out,ecsso],axis=1)
+    if len(response['facts']) > 0:
+            
+        if 'us-gaap' in response['facts'].keys():
+            financials = response['facts']['us-gaap']
+        else:
+            financials = response['facts']['ifrs-full']
+        out = pd.DataFrame()
+        currencies = []
+        if 'dei' in response['facts']:
+            dei = response['facts']['dei']
+            if 'EntityCommonStockSharesOutstanding' in dei.keys():
+                ecsso = pd.DataFrame(response['facts']['dei']['EntityCommonStockSharesOutstanding']['units']['shares'])
+                ecsso = ecsso.sort_values(by=['end','filed'],ascending=True)
+                ecsso = ecsso.groupby('end').last()
+                ecsso = ecsso[['val']].rename(columns={'val':'EntityCommonStockSharesOutstanding'}).drop_duplicates()
+                out = pd.concat([out,ecsso],axis=1)
+            else:
+                ecsso = pd.DataFrame()
         else:
             ecsso = pd.DataFrame()
-    else:
-        ecsso = pd.DataFrame()
-                
-        
-        
-    try:
-        # saved = 0
-        keep=['LongTermDebt','LongTermDebtNoncurrent','LongTermDebtCurrent','DebtCurrent','LongTermDebtAndCapitalLeaseObligationsCurrent',
-              'ShortTermBorrowings','OtherShortTermBorrowings','LTDebt','CurrLTDebt','STDebt','Revenues','RevenueFromContractWithCustomerIncludingAssessedTax','RevenueFromContractWithCustomerExcludingAssessedTax',
-              'SalesRevenueNet','AccumulatedDepreciationDepletionAndAmortizationPropertyPlantAndEquipment','DepreciationDepletionAndAmortization','Depreciation','DepreciationAndAmortization',
-              'PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization','InterestExpense','IncomeTaxExpenseBenefit',
-              'NetIncomeLoss','ProfitLoss','IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest',
-              'IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments',
-              'NetCashProvidedByUsedInOperatingActivities','NetCashProvidedByUsedInOperatingActivitiesContinuingOperations','NetCashProvidedByUsedInContinuingOperations',
-              'Assets','AssetsCurrent','AssetsNoncurrent','4. close','CommonStockSharesOutstanding','EntityCommonStockSharesOutstanding',
-              'sector','industry','naics_code','sic_code','sic_desc','date']
-        currencies = []
-        for key in keep:
-            if key in financials.keys():
+                    
             
-                if 'USD' in financials[key]['units'].keys():
-                    currency = 'USD'
-                elif 'GBP' in financials[key]['units'].keys():
-                    currency = 'GBP'
-                elif 'EUR' in financials[key]['units'].keys():
-                    currency = 'EUR'
-                elif 'CAD' in financials[key]['units'].keys():
-                    currency = 'CAD'
-                elif 'JPY' in financials[key]['units'].keys():
-                    currency = 'JPY'
-                elif 'HKD' in financials[key]['units'].keys():
-                    currency = 'HKD'
-                elif 'RMB' in financials[key]['units'].keys():
-                    currency = 'RMB'
-                else:
-                    currency = None
-                currencies.append(currency)
-                if currency != None:
-                    # print(f'"USD" in {key}')
-                    if len([x for x in ['cash','accounts','asset','liab','debt','borrowing','accrued','accumulated','paidin'] if x.lower() in key.lower() and 'usedin' not in key.lower()]):
-                        sheet = 'Balance'
-                    elif ('cash' in key.lower() and 'usedin' in key.lower()) or ('depreciation' in key.lower() and 'accumulated' not in key.lower()):
-                        sheet = 'CashFlow'
+            
+        try:
+            # saved = 0
+            keep=['LongTermDebt','LongTermDebtNoncurrent','LongTermDebtCurrent','DebtCurrent','LongTermDebtAndCapitalLeaseObligationsCurrent',
+                  'ShortTermBorrowings','OtherShortTermBorrowings','LTDebt','CurrLTDebt','STDebt','Revenues','RevenueFromContractWithCustomerIncludingAssessedTax','RevenueFromContractWithCustomerExcludingAssessedTax',
+                  'SalesRevenueNet','AccumulatedDepreciationDepletionAndAmortizationPropertyPlantAndEquipment','DepreciationDepletionAndAmortization','Depreciation','DepreciationAndAmortization',
+                  'PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization','InterestExpense','IncomeTaxExpenseBenefit',
+                  'NetIncomeLoss','ProfitLoss','IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest',
+                  'IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments',
+                  'NetCashProvidedByUsedInOperatingActivities','NetCashProvidedByUsedInOperatingActivitiesContinuingOperations','NetCashProvidedByUsedInContinuingOperations',
+                  'Assets','AssetsCurrent','AssetsNoncurrent','4. close','CommonStockSharesOutstanding','EntityCommonStockSharesOutstanding',
+                  'sector','industry','naics_code','sic_code','sic_desc','date']
+            currencies = []
+            for key in keep:
+                if key in financials.keys():
+                    
+                    currencies.extend(clist)
+                
+                    if 'USD' in financials[key]['units'].keys():
+                        currency = 'USD'
+                    elif 'GBP' in financials[key]['units'].keys():
+                        currency = 'GBP'
+                    elif 'EUR' in financials[key]['units'].keys():
+                        currency = 'EUR'
+                    elif 'CAD' in financials[key]['units'].keys():
+                        currency = 'CAD'
+                    elif 'JPY' in financials[key]['units'].keys():
+                        currency = 'JPY'
+                    elif 'HKD' in financials[key]['units'].keys():
+                        currency = 'HKD'
+                    elif 'RMB' in financials[key]['units'].keys():
+                        currency = 'RMB'
                     else:
-                        sheet = 'Income'
-                    data = dataclean(financials,key,unit=currency, sheet=sheet)
+                        currency = [x for x in financials[key]['units'] if 'shares' not in x][0]
+                    currencies.append(currency)
+                    if currency != None:
+                        # print(f'"USD" in {key}')
+                        if len([x for x in ['cash','accounts','asset','liab','debt','borrowing','accrued','accumulated','paidin'] if x.lower() in key.lower() and 'usedin' not in key.lower()]):
+                            sheet = 'Balance'
+                        elif ('cash' in key.lower() and 'usedin' in key.lower()) or ('depreciation' in key.lower() and 'accumulated' not in key.lower()):
+                            sheet = 'CashFlow'
+                        else:
+                            sheet = 'Income'
+                        data = dataclean(financials,key,unit=currency, sheet=sheet)
+                        
+                        out = pd.concat([out,data],axis=1)
+                        
+                    elif key in ['CommonStockSharesOutstanding','CommonStockSharesIssued','PreferredStockSharesIssued',
+                    'PreferredStockSharesOutstanding']:
+                        
+                        data = dataclean(financials,key,unit='shares',sheet='Shares')
+                        out = pd.concat([out,data],axis=1)
                     
-                    out = pd.concat([out,data],axis=1)
+                        
                     
-                elif key in ['CommonStockSharesOutstanding','CommonStockSharesIssued','PreferredStockSharesIssued',
-                'PreferredStockSharesOutstanding']:
                     
-                    data = dataclean(financials,key,unit='shares',sheet='Shares')
-                    out = pd.concat([out,data],axis=1)
-                
-                    
-                
-                
-                # if 'LineOfCreditFacilityCurrentBorrowingCapacity' in out.columns and saved == 0:
-                #     out_init = out_save.copy()
-                #     data_init = data.copy()
-                #     saved = 1
-        currencies = pd.Series(currencies)
-        out['ticker'] = ticker
-        out['date'] = out.index
-        if len(currencies) > 0:
-            out['currency'] = currencies.value_counts().sort_values(ascending=False).index[0]
-
-        
-        #getting stock data
-        sicrequest = http.request("GET",f'https://data.sec.gov/submissions/CIK{cik}.json')
-        stockrequest = requests.get(f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol={ticker}&outputsize=full&apikey={stockkey}')
-        companyrequest = requests.get(f'https://www.alphavantage.co/query?function=OVERVIEW&symbol={ticker}&apikey={stockkey}')
-        
-        
-        
-        if stockrequest.status_code == 200:
-            stockdata = pd.DataFrame(stockrequest.json()['Time Series (Daily)']).T.sort_index(ascending=True)
-        else:
-            raise Exception(f'Request failed. Details: {stockrequest}')
+                    # if 'LineOfCreditFacilityCurrentBorrowingCapacity' in out.columns and saved == 0:
+                    #     out_init = out_save.copy()
+                    #     data_init = data.copy()
+                    #     saved = 1
+            currencies = pd.Series(currencies)
+            out['ticker'] = ticker
+            out['date'] = out.index
+            if len(currencies) > 0:
+                out['currency'] = currencies.value_counts().sort_values(ascending=False).index[0]
+    
             
-        if companyrequest.status_code == 200:
-            js = companyrequest.json()
-            if 'Sector' in js.keys():
-                sector = js['Sector']
-            else:
-                sector = np.nan
-            if 'Industry' in js.keys():
-                industry = js['Industry']
-            else:
-                industry = np.nan
-        else:
-            raise Exception(f'Request failed. Details: {companyrequest}')
+            #getting stock data
+            sicrequest = http.request("GET",f'https://data.sec.gov/submissions/CIK{cik}.json')
+            stockrequest = requests.get(f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol={ticker}&outputsize=full&apikey={stockkey}')
+            companyrequest = requests.get(f'https://www.alphavantage.co/query?function=OVERVIEW&symbol={ticker}&apikey={stockkey}')
             
-        if sicrequest.status == 200:
-            js = sicrequest.json()
-            siccode = js['sic']
-            sic_desc = js['sicDescription']
-        else:
-            raise Exception(f'Request failed. Details: {sicrequest}')
+            
+            
+            if stockrequest.status_code == 200:
+                stockdata = pd.DataFrame(stockrequest.json()['Time Series (Daily)']).T.sort_index(ascending=True)
+            else:
+                raise Exception(f'Request failed. Details: {stockrequest}')
+                
+            if companyrequest.status_code == 200:
+                js = companyrequest.json()
+                if 'Sector' in js.keys():
+                    sector = js['Sector']
+                else:
+                    sector = np.nan
+                if 'Industry' in js.keys():
+                    industry = js['Industry']
+                else:
+                    industry = np.nan
+            else:
+                raise Exception(f'Request failed. Details: {companyrequest}')
+                
+            if sicrequest.status == 200:
+                js = sicrequest.json()
+                siccode = js['sic']
+                sic_desc = js['sicDescription']
+            else:
+                raise Exception(f'Request failed. Details: {sicrequest}')
+            
+            
+            
+            
+            out.sort_values(by='date',ascending=True,inplace=True)
+            out['date'] = pd.to_datetime(out['date'])
+            stockdata.index = pd.to_datetime(stockdata.index)
+            
+            tolerance = pd.to_timedelta('3D')
+            out_final = pd.merge_asof(out,stockdata,left_on='date',right_index=True,tolerance=tolerance)
+            
+            
+            out_final = out_final.set_index(['ticker','date']).sort_index(ascending=True)
+            stockdata.index = [(ticker,x) for x in stockdata.index]
+            out_final = pd.concat([out_final,stockdata]).drop_duplicates(subset=stockdata.columns).sort_index(ascending=True).ffill()
+            out_final['sector'] = sector
+            out_final['industry'] = industry
+            out_final['sic_code'] = siccode
+            out_final['sic_desc'] = sic_desc
+            out_final['naics_code'] = getnaics(siccode)
+            
+            out_final = out_final.loc[out_final.index.get_level_values(1) <= maxdate]
+            out_final = out_final.loc[out_final.index.get_level_values(1) >= mindate]
+            
+            
+        except KeyError as e:
+            raise KeyError(f'{e}. Ticker symbol: {ticker}. Key: {key}')
         
         
         
+        dropcols = [x for x in out_final.columns if x not in keep]
+        out_final_dropped = out_final.drop(columns=dropcols)
         
-        out.sort_values(by='date',ascending=True,inplace=True)
-        out['date'] = pd.to_datetime(out['date'])
-        stockdata.index = pd.to_datetime(stockdata.index)
-        
-        tolerance = pd.to_timedelta('3D')
-        out_final = pd.merge_asof(out,stockdata,left_on='date',right_index=True,tolerance=tolerance)
-        
-        
-        out_final = out_final.set_index(['ticker','date']).sort_index(ascending=True)
-        stockdata.index = [(ticker,x) for x in stockdata.index]
-        out_final = pd.concat([out_final,stockdata]).drop_duplicates(subset=stockdata.columns).sort_index(ascending=True).ffill()
-        out_final['sector'] = sector
-        out_final['industry'] = industry
-        out_final['sic_code'] = siccode
-        out_final['sic_desc'] = sic_desc
-        out_final['naics_code'] = getnaics(siccode)
-        
-        out_final = out_final.loc[out_final.index.get_level_values(1) <= maxdate]
-        out_final = out_final.loc[out_final.index.get_level_values(1) >= mindate]
-        
-        
-    except KeyError as e:
-        raise KeyError(f'{e}. Ticker symbol: {ticker}. Key: {key}')
-    
-    
-    
-    dropcols = [x for x in out_final.columns if x not in keep]
-    out_final_dropped = out_final.drop(columns=dropcols)
-    
-    out_final_dropped = out_final_dropped.dropna(axis=1,how='all')
-    return out_final
+        out_final_dropped = out_final_dropped.dropna(axis=1,how='all')
+        return out_final
 
 
 #%%
