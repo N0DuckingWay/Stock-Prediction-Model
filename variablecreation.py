@@ -18,8 +18,11 @@ fredkey = '84a26b17b51a63ed7dae3c7936a19d02'
 allfinancials = pd.read_pickle('Data/allfinancials.p')
 #%%
 
-##Only here because getfinancials.py does not have the ability to convert currencies yet.
 
+#removing weekends from the data
+allfinancials.loc[allfinancials.index.get_level_values(1) <= 4]
+
+##Only here because getfinancials.py does not have the ability to convert currencies yet.
 allfinancials = allfinancials.loc[allfinancials.currency == 'USD']
 
 #%% #Adding in BLS data
@@ -103,7 +106,7 @@ allfinancials_merged = pd.merge_asof(allfinancials,formatted,left_on='date',righ
 allfinancials_merged.set_index(['ticker','date'],inplace=True)
 #%% creating summary values
 print('adding in computed variables and other economic data')
-def getdata(alldata,url,valname,period,reset_month = False,chg=False,growth=False, source='bls',merge=True):
+def getdata(alldata,url,valname,period,reset_month = False,chg=False,growth=False, source='bls',merge=True,mindate = '1999-12-31'):
     global newdata, outdata, moddata
     print(f'pulling data for {valname}.')
     moddata = alldata.copy()
@@ -226,8 +229,15 @@ finalfinancials['CFO'] = allfinancials_merged.NetCashProvidedByUsedInOperatingAc
 finalfinancials['Assets'] = allfinancials_merged.Assets.fillna(allfinancials_merged.AssetsCurrent+allfinancials_merged.AssetsNoncurrent)
 
 
-
 finalfinancials['price'] = allfinancials_merged['4. close']
+
+finalfinancials = finalfinancials.astype(float)
+finalfinancials['pct_chg_forward_monthly'] = finalfinancials.groupby('ticker').price.pct_change().shift(-31)
+finalfinancials['pct_chg_forward_weekly'] = finalfinancials.groupby('ticker').price.pct_change().shift(-7)
+finalfinancials['pct_chg_forward_quarterly'] = finalfinancials.groupby('ticker').price.pct_change().shift(-91)
+finalfinancials['Rev_growth_backward'] = finalfinancials.Revenue.drop_duplicates().groupby('ticker').pct_change()
+finalfinancials['Rev_growth_backward'] = finalfinancials['Rev_growth_backward'].ffill()
+
 finalfinancials['CommonStockSharesOutstanding'] = allfinancials_merged['CommonStockSharesOutstanding'].fillna(allfinancials_merged.EntityCommonStockSharesOutstanding)
 finalfinancials['CommonStockSharesOutstanding'] = finalfinancials['CommonStockSharesOutstanding'].groupby('ticker').ffill(3)
 
@@ -242,12 +252,12 @@ finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?fu
 finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=UNEMPLOYMENT&apikey={stockkey}','unemployment','monthly',reset_month=True,chg=True)
 finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=NONFARM_PAYROLL&apikey={stockkey}','nonfarm_payroll','monthly',reset_month=True,growth=True)
 
-feddata = lambda series,name,period,reset_month,change,pctchange,source,merge: getdata(finalfinancials,f'https://api.stlouisfed.org/fred/series/observations?series_id={series}&api_key={fredkey}&file_type=json',name,period,reset_month=reset_month,chg=change, growth=pctchange,source=source,merge=merge)
+feddata = lambda series,name,period,reset_month,change,pctchange,source,merge=True: getdata(finalfinancials,f'https://api.stlouisfed.org/fred/series/observations?series_id={series}&api_key={fredkey}&file_type=json',name,period,reset_month=reset_month,chg=change, growth=pctchange,source=source,merge=merge)
 
 #Consumer Sentiment Data
 finalfinancials = feddata('UMCSENT','consumer_sentiment','monthly',reset_month=True,change=True, pctchange=True,source='fred')
 
-finaldata_preadp = finalfinancials.copy()
+# finaldata_preadp = finalfinancials.copy()
 
 #ADP data
 finalfinancials = feddata('ADPWNUSNERSA','adp_private_payrolls','weekly',reset_month=True,change=True, pctchange=True,source='fred')
@@ -313,11 +323,7 @@ man_desc = list(manufacturing['sic_desc'])
 finalfinancials = finalfinancials.astype(float)
 finalfinancials.dropna(subset='NI',inplace=True)
 finalfinancials.sort_index(ascending=True,inplace=True)
-finalfinancials['pct_chg_forward_monthly'] = finalfinancials.groupby('ticker').price.pct_change().shift(-31)
-finalfinancials['pct_chg_forward_weekly'] = finalfinancials.groupby('ticker').price.pct_change().shift(-7)
-finalfinancials['pct_chg_forward_quarterly'] = finalfinancials.groupby('ticker').price.pct_change().shift(-91)
-finalfinancials['Rev_growth_backward'] = finalfinancials.Revenue.drop_duplicates().groupby('ticker').pct_change()
-finalfinancials['Rev_growth_backward'] = finalfinancials['Rev_growth_backward'].ffill()
+
 
 # finalfinancials['return_over_rf'] = finalfinancials['pct_chg_forward'] - finalfinancials.treasury_yield
 
