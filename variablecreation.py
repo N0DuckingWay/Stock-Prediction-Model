@@ -20,8 +20,10 @@ allfinancials = pd.read_pickle('Data/allfinancials.p')
 
 
 #removing weekends from the data
-allfinancials.loc[allfinancials.index.get_level_values(1) <= 4]
+allfinancials.loc[allfinancials.index.get_level_values(1).day_of_week <= 4]
 
+#remove duplicate indices
+allfinancials = allfinancials.loc[~allfinancials.index.duplicated(keep='first')]
 ##Only here because getfinancials.py does not have the ability to convert currencies yet.
 allfinancials = allfinancials.loc[allfinancials.currency == 'USD']
 
@@ -56,6 +58,7 @@ for naics in naics_indata:
 fixes = {**naics_sec_map,454110.0:'455'}
 
 
+allfinancials['naics_code_orig'] = allfinancials['naics_code'].copy()
 allfinancials['naics_code'] = allfinancials['naics_code'].map(fixes)
 naicslist = [str(int(x)) for x in set(allfinancials.naics_code.dropna())]
 
@@ -232,12 +235,16 @@ finalfinancials['Assets'] = allfinancials_merged.Assets.fillna(allfinancials_mer
 finalfinancials['price'] = allfinancials_merged['4. close']
 
 finalfinancials = finalfinancials.astype(float)
-finalfinancials['pct_chg_forward_monthly'] = finalfinancials.groupby('ticker').price.pct_change().shift(-31)
-finalfinancials['pct_chg_forward_weekly'] = finalfinancials.groupby('ticker').price.pct_change().shift(-7)
-finalfinancials['pct_chg_forward_quarterly'] = finalfinancials.groupby('ticker').price.pct_change().shift(-91)
+
+finalfinancials.sort_index(ascending=True,inplace=True)
+
+
+finalfinancials['pct_chg_forward_monthly'] = finalfinancials.groupby('ticker').price.pct_change(20).shift(-20) # about 20 weekdays in a month on average
+finalfinancials['pct_chg_forward_weekly'] = finalfinancials.groupby('ticker').price.pct_change(5).shift(-5) #5 days in a week
+finalfinancials['pct_chg_forward_quarterly'] = finalfinancials.groupby('ticker').price.pct_change(65).shift(-65) #about 65 weekdays in a quarter
 finalfinancials['Rev_growth_backward'] = finalfinancials.Revenue.drop_duplicates().groupby('ticker').pct_change()
 finalfinancials['Rev_growth_backward'] = finalfinancials['Rev_growth_backward'].ffill()
-
+allfinancials_merged.sort_index(ascending=True,inplace=True)
 finalfinancials['CommonStockSharesOutstanding'] = allfinancials_merged['CommonStockSharesOutstanding'].fillna(allfinancials_merged.EntityCommonStockSharesOutstanding)
 finalfinancials['CommonStockSharesOutstanding'] = finalfinancials['CommonStockSharesOutstanding'].groupby('ticker').ffill(3)
 
