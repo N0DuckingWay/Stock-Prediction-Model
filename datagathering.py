@@ -239,7 +239,7 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
                   'IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments',
                   'NetCashProvidedByUsedInOperatingActivities','NetCashProvidedByUsedInOperatingActivitiesContinuingOperations','NetCashProvidedByUsedInContinuingOperations',
                   'Assets','AssetsCurrent','AssetsNoncurrent','5. adjusted close', '7. dividend amount','CommonStockSharesOutstanding','EntityCommonStockSharesOutstanding',
-                  'sector','industry','naics_code','sic_code','sic_desc','date']
+                  'sector','industry','naics_code','sic_code','sic_desc','date','currency']
             currencies = []
             for key in keep:
                 if key in financials.keys():
