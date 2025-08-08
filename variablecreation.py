@@ -5,7 +5,7 @@ Created on Mon Aug  4 17:38:29 2025
 
 @author: zdhoffman
 """
-import pandas as pd, requests, json, os
+import pandas as pd, requests, json, os, gc
 
 os.chdir('/Users/zdhoffman/Documents/Coding Projects/Stock Market Model/')
 
@@ -232,21 +232,37 @@ finalfinancials['CFO'] = allfinancials_merged.NetCashProvidedByUsedInOperatingAc
 finalfinancials['Assets'] = allfinancials_merged.Assets.fillna(allfinancials_merged.AssetsCurrent+allfinancials_merged.AssetsNoncurrent)
 
 
-finalfinancials['price'] = allfinancials_merged['4. close']
-
+finalfinancials['price'] = allfinancials_merged['5. adjusted close']
+finalfinancials['dividend'] = allfinancials_merged['7. dividend amount']
 finalfinancials = finalfinancials.astype(float)
 
 finalfinancials.sort_index(ascending=True,inplace=True)
 
 
-finalfinancials['pct_chg_forward_monthly'] = finalfinancials.groupby('ticker').price.pct_change(20).shift(-20) # about 20 weekdays in a month on average
-finalfinancials['pct_chg_forward_weekly'] = finalfinancials.groupby('ticker').price.pct_change(5).shift(-5) #5 days in a week
-finalfinancials['pct_chg_forward_quarterly'] = finalfinancials.groupby('ticker').price.pct_change(65).shift(-65) #about 65 weekdays in a quarter
+finalfinancials['pct_chg_forward_monthly'] = finalfinancials.groupby('ticker').price.pct_change(20).shift(-21) +finalfinancials.groupby('ticker')['dividend'].shift(-21) # about 21 weekdays in a month on average. Only adds dividends that are exactly one month after the date because many stocks only give dividends to shareholders that own stock at least one month before dividend date.
+finalfinancials['pct_chg_forward_weekly'] = finalfinancials.groupby('ticker').price.pct_change(5).shift(-5) #5 days in a week. Excludes dividends because many stocks only give dividends to shareholders that own stock at least one month before dividend date.
+
+qroll = finalfinancials.groupby('ticker')['dividend'].rolling(65).mean().shift(-65)
+qroll.index = qroll.index.droplevel(0)
+
+qrolladj = finalfinancials.groupby('ticker')['dividend'].rolling(20).mean().shift(-20)
+qrolladj.index = qrolladj.index.droplevel(0)
+
+finalfinancials['pct_chg_forward_quarterly'] = finalfinancials.groupby('ticker').price.pct_change(65).shift(-65)+qroll-qrolladj #about 65 weekdays in a quarter. Only includes dividends that are at least one month away.
 finalfinancials['Rev_growth_backward'] = finalfinancials.Revenue.drop_duplicates().groupby('ticker').pct_change()
 finalfinancials['Rev_growth_backward'] = finalfinancials['Rev_growth_backward'].ffill()
+
 allfinancials_merged.sort_index(ascending=True,inplace=True)
+
 finalfinancials['CommonStockSharesOutstanding'] = allfinancials_merged['CommonStockSharesOutstanding'].fillna(allfinancials_merged.EntityCommonStockSharesOutstanding)
 finalfinancials['CommonStockSharesOutstanding'] = finalfinancials['CommonStockSharesOutstanding'].groupby('ticker').ffill(3)
+
+
+sector = pd.get_dummies(allfinancials_merged.sector.str.lower().str.replace(' ','_').str.replace('&','and').str.replace(',',''),prefix='sector')
+industry = pd.get_dummies(allfinancials_merged.industry.str.lower().str.replace(' ','_').str.replace('&','and').str.replace(',',''),prefix='industry')
+
+del allfinancials_merged, allfinancials,unformatted, formatted, results
+gc.collect()
 
 finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=TREASURY_YIELD&interval=daily&maturity=1mo&apikey={stockkey}','treasury_yield','daily',chg=True)
 finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=WTI&interval=daily&apikey={stockkey}','wti_crude_price','daily',growth=True)
@@ -380,9 +396,6 @@ finalfinancials['P/CFO'] = pricerat('CFO_PS')
 
 
 
-
-sector = pd.get_dummies(allfinancials_merged.sector.str.lower().str.replace(' ','_').str.replace('&','and').str.replace(',',''),prefix='sector')
-industry = pd.get_dummies(allfinancials_merged.industry.str.lower().str.replace(' ','_').str.replace('&','and').str.replace(',',''),prefix='industry')
 
 finalfinancials_wsector = pd.merge(finalfinancials,sector,how='inner',left_index=True,right_index=True)
 finalfinancials_merged = pd.merge(finalfinancials_wsector,industry,how='inner',left_index=True,right_index=True)
