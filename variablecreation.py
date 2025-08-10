@@ -112,6 +112,7 @@ allfinancials_merged.set_index(['ticker','date'],inplace=True)
 #%% creating summary values
 print('adding in computed variables and other economic data')
 def getdata(alldata,url,valname,period,reset_month = False,chg=False,growth=False, source='bls',merge=True,mindate = '1999-12-31'):
+    global response,newdata,outdata,moddata
     print(f'pulling data for {valname}.')
     moddata = alldata.copy()
     moddata['date_sort'] = pd.to_datetime([x[1] for x in moddata.index])
@@ -273,7 +274,9 @@ discontinued = pd.read_excel('discontinued_naics.xlsx',header=1)
 man_naics = [str(int(x)) for x in manufacturing['naics_code'] if str(int(x)) not in list(discontinued['NAICS Code'].astype(str))]
 man_desc = list(manufacturing['sic_desc'])
 finalfinancials['man_by_ppi_ind'] = float('nan')
-
+finalfinancials['man_by_ppi_ind_pctchg_monthly'] = float('nan')
+finalfinancials['man_by_ppi_ind_pctchg_quarterly'] = float('nan')
+finalfinancials['naics_code'] = allfinancials_merged['naics_code']
 print(f'pulling ppi data for naics {man_naics}')
 feddata = lambda series,name,period,reset_month,change,pctchange,source,merge=True: getdata(finalfinancials,f'https://api.stlouisfed.org/fred/series/observations?series_id={series}&api_key={fredkey}&file_type=json',name,period,reset_month=reset_month,chg=change, growth=pctchange,source=source,merge=merge)
 
@@ -284,27 +287,67 @@ for i in range(len(man_naics)):
         
         naics_used = naics
         ppidata = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred', merge=False)
-        finalfinancials['man_by_ppi_ind'] = finalfinancials['man_by_ppi_ind'].fillna((allfinancials_merged['naics_code'] == naics)*ppidata)
+        
+        ppidata['naics'] = naics
+        finalfinancials = pd.merge(finalfinancials,ppidata,left_on=['naics_code','date'],right_on=['naics','date'],how='left')
+        
+        naicsstr = f'ppi_{naics_used}'
+        
+        finalfinancials['man_by_ppi_ind'] = finalfinancials['man_by_ppi_ind'].fillna(finalfinancials[naicsstr])
+        finalfinancials['man_by_ppi_ind_pctchg_quarterly'] = finalfinancials['man_by_ppi_ind_pctchg_quarterly'].fillna(finalfinancials[naicsstr+'_pctdiff_quarterly'])
+        finalfinancials['man_by_ppi_ind_pctchg_monthly'] = finalfinancials['man_by_ppi_ind_pctchg_monthly'].fillna(finalfinancials[naicsstr+'_pctdiff_monthly'])
     except:
         try:
             naics_used = naics[:-1]
             ppidata = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred', merge=False)
-            finalfinancials['man_by_ppi_ind'] = finalfinancials['man_by_ppi_ind'].fillna((allfinancials_merged['naics_code'] == naics)*ppidata)
+            
+            ppidata['naics'] = naics
+            finalfinancials = pd.merge(finalfinancials,ppidata,left_on=['naics_code','date'],right_on=['naics','date'],how='left')
+            
+            naicsstr = f'ppi_{naics_used}'
+            
+            finalfinancials['man_by_ppi_ind'] = finalfinancials['man_by_ppi_ind'].fillna(finalfinancials[naicsstr])
+            finalfinancials['man_by_ppi_ind_pctchg_quarterly'] = finalfinancials['man_by_ppi_ind_pctchg_quarterly'].fillna(finalfinancials[naicsstr+'_pctdiff_quarterly'])
+            finalfinancials['man_by_ppi_ind_pctchg_monthly'] = finalfinancials['man_by_ppi_ind_pctchg_monthly'].fillna(finalfinancials[naicsstr+'_pctdiff_monthly'])
         except:
             try:
                 naics_used = naics[:-2]
                 ppidata = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred', merge=False)
-                finalfinancials['man_by_ppi_ind'] = finalfinancials['man_by_ppi_ind'].fillna((allfinancials_merged['naics_code'] == naics)*ppidata)
+                
+                ppidata['naics'] = naics
+                finalfinancials = pd.merge(finalfinancials,ppidata,left_on=['naics_code','date'],right_on=['naics','date'],how='left')
+                
+                naicsstr = f'ppi_{naics_used}'
+                
+                finalfinancials['man_by_ppi_ind'] = finalfinancials['man_by_ppi_ind'].fillna(finalfinancials[naicsstr])
+                finalfinancials['man_by_ppi_ind_pctchg_quarterly'] = finalfinancials['man_by_ppi_ind_pctchg_quarterly'].fillna(finalfinancials[naicsstr+'_pctdiff_quarterly'])
+                finalfinancials['man_by_ppi_ind_pctchg_monthly'] = finalfinancials['man_by_ppi_ind_pctchg_monthly'].fillna(finalfinancials[naicsstr+'_pctdiff_monthly'])
             except:
                 try:
                     naics_used = naics[:-3]
                     ppidata = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred', merge=False)
-                    finalfinancials['man_by_ppi_ind'] = finalfinancials['man_by_ppi_ind'].fillna((allfinancials_merged['naics_code'] == naics)*ppidata)
+                    
+                    ppidata['naics'] = naics
+                    finalfinancials = pd.merge(finalfinancials,ppidata,left_on=['naics_code','date'],right_on=['naics','date'],how='left')
+                    
+                    naicsstr = f'ppi_{naics_used}'
+                    
+                    finalfinancials['man_by_ppi_ind'] = finalfinancials['man_by_ppi_ind'].fillna(finalfinancials[naicsstr])
+                    finalfinancials['man_by_ppi_ind_pctchg_quarterly'] = finalfinancials['man_by_ppi_ind_pctchg_quarterly'].fillna(finalfinancials[naicsstr+'_pctdiff_quarterly'])
+                    finalfinancials['man_by_ppi_ind_pctchg_monthly'] = finalfinancials['man_by_ppi_ind_pctchg_monthly'].fillna(finalfinancials[naicsstr+'_pctdiff_monthly'])
                 except:
                     try:
                         naics_used = naics[:-4]
                         ppidata = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred', merge=False)
-                        finalfinancials['man_by_ppi_ind'] = finalfinancials['man_by_ppi_ind'].fillna((allfinancials_merged['naics_code'] == naics)*ppidata)
+                        
+                        ppidata['naics'] = naics
+                        finalfinancials = pd.merge(finalfinancials,ppidata,left_on=['naics_code','date'],right_on=['naics','date'],how='left')
+                        
+                        naicsstr = f'ppi_{naics_used}'
+                        
+                        finalfinancials['man_by_ppi_ind'] = finalfinancials['man_by_ppi_ind'].fillna(finalfinancials[naicsstr])
+                        finalfinancials['man_by_ppi_ind_pctchg_quarterly'] = finalfinancials['man_by_ppi_ind_pctchg_quarterly'].fillna(finalfinancials[naicsstr+'_pctdiff_quarterly'])
+                        finalfinancials['man_by_ppi_ind_pctchg_monthly'] = finalfinancials['man_by_ppi_ind_pctchg_monthly'].fillna(finalfinancials[naicsstr+'_pctdiff_monthly'])
                     except:
                         print(f'naics {naics} not in ppi data')
 
