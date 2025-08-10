@@ -112,7 +112,6 @@ allfinancials_merged.set_index(['ticker','date'],inplace=True)
 #%% creating summary values
 print('adding in computed variables and other economic data')
 def getdata(alldata,url,valname,period,reset_month = False,chg=False,growth=False, source='bls',merge=True,mindate = '1999-12-31'):
-    global response,newdata,outdata,moddata
     print(f'pulling data for {valname}.')
     moddata = alldata.copy()
     moddata['date_sort'] = pd.to_datetime([x[1] for x in moddata.index])
@@ -277,6 +276,8 @@ finalfinancials['man_by_ppi_ind'] = float('nan')
 finalfinancials['man_by_ppi_ind_pctchg_monthly'] = float('nan')
 finalfinancials['man_by_ppi_ind_pctchg_quarterly'] = float('nan')
 finalfinancials['naics_code'] = allfinancials_merged['naics_code']
+finalfinancials['ticker'] = finalfinancials.index.get_level_values(0)
+finalfinancials['date'] = finalfinancials.index.get_level_values(1)
 print(f'pulling ppi data for naics {man_naics}')
 feddata = lambda series,name,period,reset_month,change,pctchange,source,merge=True: getdata(finalfinancials,f'https://api.stlouisfed.org/fred/series/observations?series_id={series}&api_key={fredkey}&file_type=json',name,period,reset_month=reset_month,chg=change, growth=pctchange,source=source,merge=merge)
 
@@ -351,6 +352,7 @@ for i in range(len(man_naics)):
                     except:
                         print(f'naics {naics} not in ppi data')
 
+finalfinancials.set_index(['ticker','date'])
 
 print('done creating all in one ppi')
 
