@@ -175,6 +175,7 @@ def getdata(alldata,url,valname,period,reset_month = False,chg=False,growth=Fals
             newdata[valname+'_pctdiff_quarterly'] = newdata[valname].pct_change(periods=4)
     moddata.sort_values(by='date_sort',ascending=True,inplace=True)
     #this is mostly for bug fixing, by allowing the output to not be merged with moddata
+    gc.collect()
     if merge == True:
         outdata = pd.merge_asof(moddata,newdata,left_on='date_sort',right_index=True,tolerance = tolerance)
         outdata.sort_index(ascending=True,inplace=True)
@@ -296,7 +297,7 @@ gc.collect()
 #     try:
         
 #         naics_used = naics
-#         ppidata = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred', merge=False)
+#         ppidata = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=False, pctchange=True,source='fred', merge=False)
         
 #         ppidata['naics'] = float(naics)
 #         finalfinancials['ticker'] = finalfinancials.index.get_level_values(0)
@@ -314,7 +315,7 @@ gc.collect()
 #     except:
 #         try:
 #             naics_used = naics[:-1]
-#             ppidata = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred', merge=False)
+#             ppidata = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=False, pctchange=True,source='fred', merge=False)
             
 #             ppidata['naics'] = float(naics)
 #             finalfinancials['ticker'] = finalfinancials.index.get_level_values(0)
@@ -331,7 +332,7 @@ gc.collect()
 #         except:
 #             try:
 #                 naics_used = naics[:-2]
-#                 ppidata = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred', merge=False)
+#                 ppidata = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=False, pctchange=True,source='fred', merge=False)
                 
 #                 ppidata['naics'] = float(naics)
 #                 finalfinancials['ticker'] = finalfinancials.index.get_level_values(0)
@@ -349,7 +350,7 @@ gc.collect()
 #                 if len(naics) > 3:
 #                     try:
 #                         naics_used = naics[:-3]
-#                         ppidata = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred', merge=False)
+#                         ppidata = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=False, pctchange=True,source='fred', merge=False)
                         
 #                         ppidata['naics'] = float(naics)
 #                         finalfinancials['ticker'] = finalfinancials.index.get_level_values(0)
@@ -367,7 +368,7 @@ gc.collect()
 #                         if len(naics) > 4:
 #                             try:
 #                                 naics_used = naics[:-4]
-#                                 ppidata = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=True, pctchange=True,source='fred', merge=False)
+#                                 ppidata = feddata(f'PCU{naics_used}{naics_used}',f'ppi_{naics_used}','monthly',reset_month=True,change=False, pctchange=True,source='fred', merge=False)
                                 
 #                                 ppidata['naics'] = float(naics)
 #                                 finalfinancials['ticker'] = finalfinancials.index.get_level_values(0)
@@ -453,13 +454,13 @@ finalfinancials = feddata('ADPWINDOTHSRVNERSA','adp_otherservices_payrolls','wee
 print('done pulling payroll data')
 
 #PPI data
-finalfinancials = feddata('PPIFIS','ppi_total','monthly',reset_month=True,change=True, pctchange=True,source='fred')
+finalfinancials = feddata('PPIFIS','ppi_total','monthly',reset_month=True,change=False, pctchange=True,source='fred')
 
 
 
+finalfinancials.drop(columns=['ticker'],inplace=True)
 
-
-finalfinancials = finalfinancials.astype(float)
+finalfinancials[[x for x in finalfinancials.columns if 'sector' not in x]] = finalfinancials[[x for x in finalfinancials.columns if 'sector' not in x]].astype(float)
 finalfinancials.dropna(subset='NI',inplace=True)
 finalfinancials.sort_index(ascending=True,inplace=True)
 
@@ -500,6 +501,7 @@ finalfinancials['Debt_by_NI'] = finalfinancials.Debt/finalfinancials.NI
 finalfinancials['Debt_by_Rev'] = finalfinancials.Debt/finalfinancials.Revenue
 finalfinancials['Debt_by_Assets'] = finalfinancials.Debt/finalfinancials.Assets
 
+print('getting differences')
 for col in ['NI_MAR','EBITDA_MAR','EBIT_MAR','CFO_MAR']:
     finalfinancials[col+'_diff'] = diff(col)
 
