@@ -7,7 +7,7 @@ Created on Mon Aug  4 17:38:29 2025
 """
 import pandas as pd, requests, json, os, gc
 
-os.chdir('/Users/zdhoffman/Documents/Coding Projects/Stock Market Model/')
+
 
 
 stockkey = 'GJT87YF8QI5GZUND'
