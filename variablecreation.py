@@ -258,13 +258,15 @@ finalfinancials['Rev_growth_backward'] = finalfinancials.Revenue.drop_duplicates
 finalfinancials['Rev_growth_backward'] = finalfinancials['Rev_growth_backward'].ffill()
 
 allfinancials_merged.sort_index(ascending=True,inplace=True)
-
+del qroll, qrolladj
 finalfinancials['CommonStockSharesOutstanding'] = allfinancials_merged['CommonStockSharesOutstanding'].fillna(allfinancials_merged.EntityCommonStockSharesOutstanding)
 finalfinancials['CommonStockSharesOutstanding'] = finalfinancials['CommonStockSharesOutstanding'].groupby('ticker').ffill(3)
 
 
 sector = pd.get_dummies(allfinancials_merged.sector.str.lower().str.replace(' ','_').str.replace('&','and').str.replace(',',''),prefix='sector')
-industry = pd.get_dummies(allfinancials_merged.industry.str.lower().str.replace(' ','_').str.replace('&','and').str.replace(',',''),prefix='industry')
+finalfinancials['is_real_estate'] = allfinancials_merged.industry.str.contains('real_estate',case=False)
+finalfinancials['is_bank'] = allfinancials_merged.industry.str.contains('loan|bank',case=False)
+# industry = pd.get_dummies(allfinancials_merged.industry.str.lower().str.replace(' ','_').str.replace('&','and').str.replace(',',''),prefix='industry')
 
 manufacturing = allfinancials_merged.loc[allfinancials_merged.naics_code.astype(str).str[:2].isin(['31','32','33'])][['naics_code','sic_desc']].drop_duplicates(subset='naics_code')
 
@@ -401,7 +403,7 @@ qoq_growth_by_naics =rev_by_naics.groupby('naics_code').pct_change(65).rename(co
 rev_by_sector = finalfinancials.groupby(['sector','date'])[['Revenue']].sum().sort_index(ascending=True)
 yoy_growth_by_sector =rev_by_sector.groupby('sector').pct_change(260).rename(columns={'Revenue':'sector_growth_yoy'})
 qoq_growth_by_sector =rev_by_sector.groupby('sector').pct_change(65).rename(columns={'Revenue':'sector_growth_qoq'})
-finalfinancials_old = finalfinancials.copy()
+# finalfinancials_old = finalfinancials.copy()
 # finalfinancials['date'] =  finalfinancials.index.get_level_values(1)
 finalfinancials['ticker'] =  finalfinancials.index.get_level_values(0)
 
@@ -564,8 +566,8 @@ finalfinancials['death_cross'] = (finalfinancials['MA_50_by_200'] <= 1) & (final
 
 
 
-finalfinancials_wsector = pd.merge(finalfinancials,sector,how='inner',left_index=True,right_index=True)
-finalfinancials_merged = pd.merge(finalfinancials_wsector,industry,how='inner',left_index=True,right_index=True)
+finalfinancials_merged = pd.merge(finalfinancials,sector,how='inner',left_index=True,right_index=True)
+# finalfinancials_merged = pd.merge(finalfinancials_merged,industry,how='inner',left_index=True,right_index=True)
 
 
 
@@ -573,7 +575,7 @@ finalfinancials_merged = pd.merge(finalfinancials_wsector,industry,how='inner',l
 
 #%%
 
-finalfinancials.dropna(subset='pct_chg_forward')
+finalfinancials_merged.dropna(subset='pct_chg_forward')
 
-finalfinancials.to_pickle('Data/financials.p')
+finalfinancials_merged.to_pickle('Data/financials.p')
 
