@@ -437,6 +437,7 @@ finalfinancials = feddata('UMCSENT','consumer_sentiment','monthly',reset_month=T
 #FRED data
 finalfinancials = feddata('WM2NS','m2_money_supply','weekly',reset_month=True,change=False, pctchange=True,source='fred')
 
+
 finalfinancials = feddata('ADPWNUSNERSA','adp_private_payrolls','weekly',reset_month=True,change=False, pctchange=True,source='fred')
 finalfinancials = feddata('ADPWINDMANNERSA','adp_manufacturing_payrolls','weekly',reset_month=True,change=False, pctchange=True,source='fred')
 finalfinancials = feddata('ADPWINDCONNERSA','adp_construction_payrolls','weekly',reset_month=True,change=False, pctchange=True,source='fred')
@@ -455,7 +456,38 @@ finalfinancials = feddata('ADPWINDFINNERSA','adp_financial_payrolls','weekly',re
 finalfinancials = feddata('ADPWINDNRMINNERSA','adp_mining_payrolls','weekly',reset_month=True,change=False, pctchange=True,source='fred')
 finalfinancials = feddata('ADPWINDOTHSRVNERSA','adp_otherservices_payrolls','weekly',reset_month=True,change=False, pctchange=True,source='fred')
 
-print('done pulling payroll data')
+
+finalfinancials = feddata('PCEC96','pce','monthly',reset_month=True,change=False, pctchange=True,source='fred')
+finalfinancials = feddata('DGDSRX1','pce_goods','monthly',reset_month=True,change=False, pctchange=True,source='fred')
+finalfinancials = feddata('PCEDGC96','pce_durablegoods','monthly',reset_month=True,change=False, pctchange=True,source='fred')
+finalfinancials = feddata('PCESC96','pce_services','monthly',reset_month=True,change=False, pctchange=True,source='fred')
+finalfinancials = feddata('PCENDC96','pce_nondurablegoods','monthly',reset_month=True,change=False, pctchange=True,source='fred')
+
+finalfinancials = feddata('DTWEXBGS','usdollar_index','monthly',reset_month=True,change=False, pctchange=True,source='fred')
+finalfinancials = feddata('TERMCBCCALLNS','credit_card_interest_rate','monthly',reset_month=True,change=False, pctchange=True,source='fred')
+
+
+finalfinancials = feddata('DRCCLACBS','credit_card_delinquency','quarterly',reset_month=True,change=False, pctchange=True,source='fred')
+finalfinancials = feddata('DRCLACBS','consumer_loan_delinquency','quarterly',reset_month=True,change=False, pctchange=True,source='fred')
+finalfinancials = feddata('DRBLACBS','business_loan_delinquency','quarterly',reset_month=True,change=False, pctchange=True,source='fred')
+
+
+
+finalfinancials = feddata('CSUSHPISA','home_price','monthly',reset_month=True,change=False, pctchange=True,source='fred')
+
+finalfinancials = feddata('BAMLH0A0HYM2EY','junk_bond_yield','daily',reset_month=True,change=True, pctchange=True,source='fred')
+finalfinancials = feddata('BAMLH0A0HYM2','junk_bond_oas_spread','daily',reset_month=True,change=True, pctchange=True,source='fred')
+
+finalfinancials = feddata('RETAILIRSA','retailer_inventories_by_sales','monthly',reset_month=True,change=False, pctchange=True,source='fred')
+finalfinancials = feddata('TOTALSA','vehicle_sales','monthly',reset_month=True,change=False, pctchange=True,source='fred')
+finalfinancials = feddata('AISRSA','car_inventories_by_sales','monthly',reset_month=True,change=False, pctchange=True,source='fred')
+
+finalfinancials = feddata('HTRUCKSSAAR','heavy_weight_truck_sales','monthly',reset_month=True,change=False, pctchange=True,source='fred')
+finalfinancials = feddata('ALTSALES','light_vehicle_sales','monthly',reset_month=True,change=False, pctchange=True,source='fred')
+
+
+
+
 
 #PPI data
 finalfinancials = feddata('PPIFIS','ppi_total','monthly',reset_month=True,change=False, pctchange=True,source='fred')
