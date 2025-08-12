@@ -272,7 +272,7 @@ manufacturing = allfinancials_merged.loc[allfinancials_merged.naics_code.astype(
 #all manufacturing naics codes
 discontinued = pd.read_excel('discontinued_naics.xlsx',header=1)
 
-man_naics = [str(int(x)) for x in manufacturing['naics_code'] if str(int(x)) not in list(discontinued['NAICS Code'].astype(str))]
+
 man_desc = list(manufacturing['sic_desc'])
 finalfinancials['man_by_ppi_ind'] = float('nan')
 finalfinancials['man_by_ppi_ind_pctchg_monthly'] = float('nan')
@@ -280,7 +280,7 @@ finalfinancials['man_by_ppi_ind_pctchg_quarterly'] = float('nan')
 finalfinancials['naics_code'] = allfinancials_merged['naics_code']
 # finalfinancials['ticker'] = finalfinancials.index.get_level_values(0)
 # finalfinancials['date'] = finalfinancials.index.get_level_values(1)
-print(f'pulling ppi data for naics {man_naics}')
+
 feddata = lambda series,name,period,reset_month,change,pctchange,source,merge=True: getdata(finalfinancials,f'https://api.stlouisfed.org/fred/series/observations?series_id={series}&api_key={fredkey}&file_type=json',name,period,reset_month=reset_month,chg=change, growth=pctchange,source=source,merge=merge)
 
 finalfinancials['man_by_ppi_ind'] = float('nan')
@@ -290,6 +290,8 @@ finalfinancials['naics_code'] = allfinancials_merged['naics_code']
 finalfinancials['sector'] = allfinancials_merged['sector']
 del allfinancials_merged, allfinancials,unformatted, formatted, results,
 gc.collect()
+# man_naics = [str(int(x)) for x in manufacturing['naics_code'] if str(int(x)) not in list(discontinued['NAICS Code'].astype(str))]
+# print(f'pulling ppi data for naics {man_naics}')
 # # finalfinancials_old = finalfinancials.copy()
 # for i in range(len(man_naics)):
 #     naics = man_naics[i]
