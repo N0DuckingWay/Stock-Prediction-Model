@@ -434,7 +434,9 @@ finalfinancials = feddata('UMCSENT','consumer_sentiment','monthly',reset_month=T
 
 # finaldata_preadp = finalfinancials.copy()
 
-#ADP data
+#FRED data
+finalfinancials = feddata('WM2NS','m2_money_supply','weekly',reset_month=True,change=False, pctchange=True,source='fred')
+
 finalfinancials = feddata('ADPWNUSNERSA','adp_private_payrolls','weekly',reset_month=True,change=False, pctchange=True,source='fred')
 finalfinancials = feddata('ADPWINDMANNERSA','adp_manufacturing_payrolls','weekly',reset_month=True,change=False, pctchange=True,source='fred')
 finalfinancials = feddata('ADPWINDCONNERSA','adp_construction_payrolls','weekly',reset_month=True,change=False, pctchange=True,source='fred')
