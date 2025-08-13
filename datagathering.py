@@ -197,11 +197,31 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
     Pandas dataframe containing all financial information.
 
     '''
-    global response, stockrequest
+    global response, stockrequest, companyrequest, ecsso, out, response_init
     
+    companyrequest = requests.get(f'https://www.alphavantage.co/query?function=OVERVIEW&symbol={ticker}&apikey={stockkey}')
+    companyjs = companyrequest.json()
+    
+    if companyrequest.status_code == 200:
+        if 'AssetType' in companyjs.keys() and companyjs['AssetType'] != 'Common Stock':
+            raise Exception(f'{ticker} is not common stock')
+        
+        if 'Sector' in companyjs.keys():
+            sector = companyjs['Sector']
+        else:
+            sector = np.nan
+        if 'Industry' in companyjs.keys():
+            industry = companyjs['Industry']
+        else:
+            industry = np.nan
+    else:
+        raise Exception(f'Request failed. Details: {companyrequest}')
     
     cik = get_cik_for_ticker(ticker)
-    response = json.loads(http.request("GET",f'https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json').data)
+    response_init = http.request("GET",f'https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json').data
+    if 'the specified key does not exist' in str(response_init).lower():
+        raise Exception(f'{ticker} does not exist in Edgar. Likely is not common stock')
+    response = json.loads(response_init)
     
     
    
@@ -302,7 +322,7 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
             #getting stock data
             sicrequest = http.request("GET",f'https://data.sec.gov/submissions/CIK{cik}.json')
             stockrequest = requests.get(f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol={ticker}&outputsize=full&apikey={stockkey}')
-            companyrequest = requests.get(f'https://www.alphavantage.co/query?function=OVERVIEW&symbol={ticker}&apikey={stockkey}')
+            
             
             
             
@@ -311,18 +331,7 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
             else:
                 raise Exception(f'Request failed. Details: {stockrequest}')
                 
-            if companyrequest.status_code == 200:
-                js = companyrequest.json()
-                if 'Sector' in js.keys():
-                    sector = js['Sector']
-                else:
-                    sector = np.nan
-                if 'Industry' in js.keys():
-                    industry = js['Industry']
-                else:
-                    industry = np.nan
-            else:
-                raise Exception(f'Request failed. Details: {companyrequest}')
+            
                 
             if sicrequest.status == 200:
                 js = sicrequest.json()
@@ -371,8 +380,8 @@ def getfinancials(ticker,maxdate = np.datetime64('today'),mindate=np.datetime64(
 
 
 tickerlist = pd.read_excel('tickers.xlsx',header=1)['Ticker']
-
-tickers = list(tickerlist)
+nopreferreds = tickerlist.loc[~tickerlist.astype(str).str.contains("\.|\^|\-|p",case=True)]
+tickers = list(nopreferreds)
 
 errors = {}
 collect = []
@@ -404,7 +413,9 @@ for i in range(tickerlen):
         
     except Exception as e:
         errors[ticker] = e
-        
+
+    
+
 print('Done gathering data, concatenating now')
 allfinancials = pd.concat(collect,axis=0)
 
@@ -414,6 +425,16 @@ allfinancials.sort_values(by='date_sort',inplace=True,ascending=True)
 
 
 print('finished getting data for each ticker')
+
+errors = pd.Series(errors).astype(str)
+errors.loc[errors.str.contains('no cik',case=False)] = 'No CIK'
+errors.loc[errors.str.contains('not common stock',case=False)] = 'Not common stock'
+errors.loc[errors.str.contains('Time Series',case=False)] = 'No share price data'
+
+finderror = lambda x: errors.loc[errors.str.contains(x,case=False)]
+
+error_counts = errors.value_counts()
+
 
 print(f'\nWARNING: {len(errors)} errors detected!')
 allfinancials['currency'] = allfinancials.groupby(level=0).currency.ffill().bfill()
