@@ -573,7 +573,7 @@ finalfinancials = feddata('ALTSALES','light_vehicle_sales','monthly',reset_month
 
 #PPI data
 finalfinancials = feddata('PPIFIS','ppi_total','monthly',reset_month=True,change=False, pctchange=True,source='fred')
-
+gc.collect()
 
 
 finalfinancials.drop(columns=['ticker'],inplace=True)
