@@ -13,12 +13,16 @@ from scipy.stats import shapiro, boxcox
 from statsmodels.regression.linear_model import OLS
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import root_mean_squared_error as rmse
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt, os
+
+os.chdir(r'C:\Users\paperspace\Documents\Coding Projects\Stock-Prediction-Model')
 
 warnings.filterwarnings("ignore")
+y = 'pct_chg_forward_weekly'
 
 vifcalc = lambda vfdata: pd.Series({vfdata.columns[i]:vif(vfdata.astype(float),i) for i in range(len(vfdata.columns))})
-y = 'pct_chg_forward'
+
+
 
 
 
@@ -130,21 +134,35 @@ def transform(series,choose=False):
             return series
         
 
-
+def relgraph(x):
+    rollingmean = meanplotdata[[x,'price']].sort_values(by=x).dropna().rolling(1000).mean()
+    rollingmean[x] = rollingmean[x].clip(lower = clip[x]['lower'],upper = clip[x]['upper'])
+    
+    fig, axes = plt.subplots(nrows=2, ncols=1, sharex=True)
+    
+    rollingmean.plot(x=x,y='price',ax=axes[0])
+    rollingmean[x].hist(ax=axes[1])
+    plt.title(f'Graph of price by {x}')
+    plt.show()
+    plt.savefig(f'Plots\price_by_{x.replace("/","_")}.png')
 
         #%%
 
-data = pd.read_pickle('Data/financials.p')
+data = pd.read_pickle('Data/financials.p').drop(columns='sector')
+
+depvars = [x for x in data if 'pct_chg_forward' in x]
 
 
 
 #%% Plotting relationships
 
+meanplotdata = data.groupby('date').mean()
+
+clip = {x:{'lower':data[x].mean()-data[x].std()*1.96,'upper':data[x].mean()+data[x].std()*1.96} for x in data.columns if data[x].dtype != bool}
+
 for x in data.columns:
-    if x != y:
-        rolling = data[[x,y]].sort_values(by=x).dropna().rolling(1000).mean()
-        rolling[x] = rolling[x].clip(lower = rolling[x].quantile(0.05),upper = rolling[x].quantile(0.95))
-        rolling.plot(x=x,y=y)
+    if x not in depvars and 'price' not in x and x in clip.keys():
+        relgraph(x)
 
 
 #%% Correlations, Etc.
@@ -237,85 +255,3 @@ unbucketedcols = [x for x in stats.index if x not in bucketedcols and x not in [
 allcols = unbucketedcols + buckets
 
 
-#%% Train Test
-
-data_model = add_constant(data_transformed)
-
-X_train, X_test, y_train, y_test = train_test_split(
-    data_model[unbucketedcols+bucketedcols+['const']], data_model[y], test_size=0.33, random_state=42)
-
-#%% forward selection
-
-bucketcompares = []
-
-
-forwardcols = []
-threshold = 0.1
-notins = ['EBITDA_MAR_diff','REV_PS']
-for c in allcols:
-    if c not in notins:
-        if type(c) != list:
-            model = OLS(exog=data_model[['const'] + [c] + forwardcols],endog=data_model[y],hasconst=True)
-            results = model.fit()
-            pvalue = results.pvalues
-            if pvalue[c] <= 0.1:
-                forwardcols.append(c)
-        elif type(c) == list:
-            compare = pd.DataFrame(index=['p','r2'])
-            for col in c:
-                if col not in notins:
-                    model = OLS(exog=data_model[['const'] + [col] + forwardcols],endog=data_model[y],hasconst=True)
-                    results = model.fit()
-                    pvalue = results.pvalues
-                    rsquared = results.rsquared
-                    compare[col] = {'p':pvalue[col],'r2':rsquared}
-            compare = compare.T
-            compare.sort_values(by='r2',ascending=False,inplace=True)
-            compare = compare.loc[compare.p <= threshold]
-            bucketcompares.append(compare)
-            if len(compare.index) > 0:
-                forwardcols.append(compare.index[0])
-            
-forwardmodel = OLS(exog=X_train[['const'] + forwardcols],endog=y_train,hasconst=True)
-forwardresults = forwardmodel.fit()
-print(forwardresults.summary())
-
-yhat_train = forwardresults.predict(X_train[['const'] + forwardcols])
-yhat_test = forwardresults.predict(X_test[['const'] + forwardcols])
-
-rmse_train_forward = rmse(y_train,yhat_train)
-rmse_test_forward = rmse(y_test,yhat_test)
-
-print(f'\nTraining Percent RMSE (forward selection): {rmse_train_forward/yhat_train.mean()}')
-print(f'Test Percent RMSE (forward selection): {rmse_test_forward/yhat_test.mean()}')
-            
-
-#%% backward selection:
-
-
-backwardstart = list(stats.sort_values(by='p',ascending=False).index)
-removed = []
-notins = ['EBIT_MAR','EBITDA_MAR','REV_PS','EBIT_MAR_DIFF','P/E','P/EBIT','Debt_by_EBIT', 'Debt_by_Assets_diff','Debt_by_NI_diff']
-for c in backwardstart:
-    keep = [x for x in backwardstart if x not in removed and x not in notins]
-    model = OLS(exog=data_model[['const'] + keep],endog=data_model[y],hasconst=True)
-    results = model.fit()
-    pvalue = results.pvalues
-    drop = pvalue.loc[(pvalue == pvalue.max()) & (pvalue > threshold)]
-    if len(drop) > 0:
-        removed.append(drop.index[0])
-
-backwardcols = [x for x in backwardstart if x not in removed and x not in notins]
-
-backwardmodel = OLS(exog=X_train[['const'] + backwardcols],endog=y_train,hasconst=True)
-backwardresults = backwardmodel.fit()
-print(backwardresults.summary())
-vifs = vifcalc(data_model[['const'] + backwardcols])
-yhat_train = backwardresults.predict(X_train[['const'] + backwardcols])
-yhat_test = backwardresults.predict(X_test[['const'] + backwardcols])
-
-rmse_train_backward = rmse(y_train,yhat_train)
-rmse_test_forward = rmse(y_test,yhat_test)
-
-print(f'\nTraining Percent RMSE (backward selection): {rmse_train_backward/yhat_train.mean()}')
-print(f'Test Percent RMSE (backward selection): {rmse_test_forward/yhat_test.mean()}')
