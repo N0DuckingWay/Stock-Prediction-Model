@@ -246,7 +246,13 @@ finalfinancials = finalfinancials.astype(float)
 
 finalfinancials.sort_index(ascending=True,inplace=True)
 
+qroll = finalfinancials.groupby('ticker')['dividend'].rolling(65).mean().shift(-65)
+qroll.index = qroll.index.droplevel(0)
 
+qrolladj = finalfinancials.groupby('ticker')['dividend'].rolling(20).mean().shift(-20)
+qrolladj.index = qrolladj.index.droplevel(0)
+
+finalfinancials['pct_chg_forward_quarterly'] = finalfinancials.groupby('ticker').price.pct_change(65).shift(-65)+qroll-qrolladj #about 65 weekdays in a quarter. Only includes dividends that are at least one month away.
 finalfinancials['pct_chg_forward_monthly'] = finalfinancials.groupby('ticker').price.pct_change(20).shift(-21) +finalfinancials.groupby('ticker')['dividend'].shift(-21) # about 21 weekdays in a month on average. Only adds dividends that are exactly one month after the date because many stocks only give dividends to shareholders that own stock at least one month before dividend date.
 finalfinancials['pct_chg_forward_weekly'] = finalfinancials.groupby('ticker').price.pct_change(5).shift(-5) #5 days in a week. Excludes dividends because many stocks only give dividends to shareholders that own stock at least one month before dividend date.
 finalfinancials['pct_change_lastweek'] = finalfinancials.groupby('ticker').price.pct_change(5)
@@ -268,13 +274,7 @@ finalfinancials['death_cross'] = (finalfinancials['MA_50_by_200'] <= 1) & (final
 finalfinancials['golden_cross_st'] = (finalfinancials['MA_5_by_50'] > 1) & (finalfinancials['MA_5_by_50'].groupby('ticker').shift(-1)<= 1)
 finalfinancials['death_cross_st'] = (finalfinancials['MA_5_by_50'] <= 1) & (finalfinancials['MA_5_by_50'].groupby('ticker').shift(-1) > 1)
 
-qroll = finalfinancials.groupby('ticker')['dividend'].rolling(65).mean().shift(-65)
-qroll.index = qroll.index.droplevel(0)
 
-qrolladj = finalfinancials.groupby('ticker')['dividend'].rolling(20).mean().shift(-20)
-qrolladj.index = qrolladj.index.droplevel(0)
-
-finalfinancials['pct_chg_forward_quarterly'] = finalfinancials.groupby('ticker').price.pct_change(65).shift(-65)+qroll-qrolladj #about 65 weekdays in a quarter. Only includes dividends that are at least one month away.
 finalfinancials['Rev_growth_backward'] = finalfinancials.Revenue.drop_duplicates().groupby('ticker').pct_change()
 finalfinancials['Rev_growth_backward'] = finalfinancials['Rev_growth_backward'].ffill()
 
@@ -485,7 +485,8 @@ finalfinancials.sort_index(ascending=False,inplace=True)
 
 
 finalfinancials.drop(columns=['LTDebt','STDebt','CurrLTDebt','D&A','Interest','Tax',
-                              'NI','CFO','EV','CommonStockSharesOutstanding'],inplace=True)
+                              'NI','CFO','EV','CommonStockSharesOutstanding',
+                              'Debt'],inplace=True)
 
 finalfinancials = pd.merge(finalfinancials,yoy_growth_by_naics,on=['naics_code','date'],how='left')
 finalfinancials = pd.merge(finalfinancials,qoq_growth_by_naics,on=['naics_code','date'],how='left')
@@ -576,7 +577,7 @@ finalfinancials = feddata('PPIFIS','ppi_total','monthly',reset_month=True,change
 gc.collect()
 
 
-finalfinancials.drop(columns=['ticker'],inplace=True)
+
 
 
 
