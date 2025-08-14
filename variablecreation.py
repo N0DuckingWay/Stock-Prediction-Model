@@ -211,6 +211,7 @@ finalfinancials['LTDebt'] = (allfinancials_merged['LongTermDebt']).fillna(allfin
 finalfinancials['CurrLTDebt']= allfinancials_merged['LongTermDebtCurrent'].fillna(allfinancials_merged['DebtCurrent']).fillna(allfinancials_merged.LongTermDebtAndCapitalLeaseObligationsCurrent)
 finalfinancials['STDebt'] = allfinancials_merged['ShortTermBorrowings'].fillna(allfinancials_merged.OtherShortTermBorrowings)
 
+
 finalfinancials['Debt'] = finalfinancials[['LTDebt','CurrLTDebt','STDebt']].sum(axis=1)
 
 finalfinancials['Revenue'] = allfinancials_merged.Revenues.fillna(allfinancials_merged.RevenueFromContractWithCustomerIncludingAssessedTax).fillna(allfinancials_merged.RevenueFromContractWithCustomerExcludingAssessedTax).fillna(allfinancials_merged.SalesRevenueNet)
@@ -234,6 +235,8 @@ finalfinancials['EBIT'] = allfinancials_merged.IncomeLossFromContinuingOperation
 finalfinancials['EBITDA'] = finalfinancials.EBIT + finalfinancials['D&A']
 finalfinancials['CFO'] = allfinancials_merged.NetCashProvidedByUsedInOperatingActivities.fillna(allfinancials_merged.NetCashProvidedByUsedInOperatingActivitiesContinuingOperations).fillna(allfinancials_merged.NetCashProvidedByUsedInContinuingOperations)
 
+
+
 finalfinancials['Assets'] = allfinancials_merged.Assets.fillna(allfinancials_merged.AssetsCurrent+allfinancials_merged.AssetsNoncurrent)
 
 
@@ -246,6 +249,24 @@ finalfinancials.sort_index(ascending=True,inplace=True)
 
 finalfinancials['pct_chg_forward_monthly'] = finalfinancials.groupby('ticker').price.pct_change(20).shift(-21) +finalfinancials.groupby('ticker')['dividend'].shift(-21) # about 21 weekdays in a month on average. Only adds dividends that are exactly one month after the date because many stocks only give dividends to shareholders that own stock at least one month before dividend date.
 finalfinancials['pct_chg_forward_weekly'] = finalfinancials.groupby('ticker').price.pct_change(5).shift(-5) #5 days in a week. Excludes dividends because many stocks only give dividends to shareholders that own stock at least one month before dividend date.
+finalfinancials['pct_change_lastweek'] = finalfinancials.groupby('ticker').price.pct_change(5)
+
+finalfinancials['MA_200'] = finalfinancials.groupby('ticker')['price'].rolling(200).mean().reset_index(level=0,drop=True)
+finalfinancials['MA_100'] = finalfinancials.groupby('ticker')['price'].rolling(100).mean().reset_index(level=0,drop=True)
+finalfinancials['MA_50'] = finalfinancials.groupby('ticker')['price'].rolling(50).mean().reset_index(level=0,drop=True)
+finalfinancials['MA_5'] = finalfinancials.groupby('ticker')['price'].rolling(5).mean().reset_index(level=0,drop=True)
+
+finalfinancials['pct_of_200'] = finalfinancials.price/finalfinancials['MA_200']
+finalfinancials['pct_of_100'] = finalfinancials.price/finalfinancials['MA_100']
+finalfinancials['pct_of_50'] = finalfinancials.price/finalfinancials['MA_50']
+
+finalfinancials['MA_50_by_200'] = finalfinancials['MA_50'] / finalfinancials['MA_200']
+finalfinancials['MA_5_by_50'] = finalfinancials['MA_5'] / finalfinancials['MA_50']
+finalfinancials['golden_cross'] = (finalfinancials['MA_50_by_200'] > 1) & (finalfinancials['MA_50_by_200'].groupby('ticker').shift(-1)<= 1)
+finalfinancials['death_cross'] = (finalfinancials['MA_50_by_200'] <= 1) & (finalfinancials['MA_50_by_200'].groupby('ticker').shift(-1) > 1)
+
+finalfinancials['golden_cross_st'] = (finalfinancials['MA_5_by_50'] > 1) & (finalfinancials['MA_5_by_50'].groupby('ticker').shift(-1)<= 1)
+finalfinancials['death_cross_st'] = (finalfinancials['MA_5_by_50'] <= 1) & (finalfinancials['MA_5_by_50'].groupby('ticker').shift(-1) > 1)
 
 qroll = finalfinancials.groupby('ticker')['dividend'].rolling(65).mean().shift(-65)
 qroll.index = qroll.index.droplevel(0)
@@ -290,7 +311,7 @@ finalfinancials['man_by_ppi_ind'] = float('nan')
 
 finalfinancials['naics_code'] = allfinancials_merged['naics_code']
 finalfinancials['sector'] = allfinancials_merged['sector']
-del allfinancials_merged, allfinancials,unformatted, formatted, results,
+
 gc.collect()
 # man_naics = [str(int(x)) for x in manufacturing['naics_code'] if str(int(x)) not in list(discontinued['NAICS Code'].astype(str))]
 # print(f'pulling ppi data for naics {man_naics}')
@@ -406,6 +427,65 @@ qoq_growth_by_sector =rev_by_sector.groupby('sector').pct_change(65).rename(colu
 # finalfinancials_old = finalfinancials.copy()
 # finalfinancials['date'] =  finalfinancials.index.get_level_values(1)
 finalfinancials['ticker'] =  finalfinancials.index.get_level_values(0)
+excludecols = [x for x in finalfinancials.columns if 'sector' not in x and 'ticker' not in x]
+finalfinancials[excludecols] = finalfinancials[excludecols].astype(float)
+finalfinancials.dropna(subset='NI',inplace=True)
+finalfinancials.sort_index(ascending=True,inplace=True)
+
+
+# finalfinancials['return_over_rf'] = finalfinancials['pct_chg_forward'] - finalfinancials.treasury_yield
+
+
+
+pershare = lambda col: finalfinancials[col]/finalfinancials['CommonStockSharesOutstanding']
+pricerat = lambda col: finalfinancials['price']/finalfinancials[col]
+margin = lambda col: finalfinancials[col]/finalfinancials['Revenue']
+diff = lambda col: finalfinancials[col].groupby('ticker').diff()
+
+finalfinancials['EPS'] = pershare('NI')
+finalfinancials['EBITDA_PS'] = pershare('EBITDA')
+finalfinancials['EBIT_PS'] = pershare('EBIT')
+finalfinancials['CFO_PS'] = pershare('CFO')
+finalfinancials['REV_PS'] = pershare('Revenue')
+
+finalfinancials['Assets_PS'] = pershare('Assets')
+
+finalfinancials['MarketCap'] = finalfinancials.price*finalfinancials.CommonStockSharesOutstanding
+finalfinancials['EV'] = finalfinancials['MarketCap'].fillna(0)+finalfinancials['Debt'].fillna(0)
+
+finalfinancials['EV/EBITDA'] = finalfinancials['EV'].fillna(0)/finalfinancials['EBITDA'].fillna(0)
+finalfinancials['EV/EBIT'] = finalfinancials['EV'].fillna(0)/finalfinancials['EBIT'].fillna(0)
+finalfinancials['EV/NI'] = finalfinancials['EV'].fillna(0)/finalfinancials['NI'].fillna(0)
+
+finalfinancials['NI_MAR'] = margin('NI')
+finalfinancials['EBITDA_MAR'] = margin('EBITDA')
+finalfinancials['EBIT_MAR'] = margin('EBIT')
+finalfinancials['CFO_MAR'] = margin('CFO')
+
+
+finalfinancials['Debt_by_EBITDA'] = finalfinancials.Debt/finalfinancials.EBITDA
+finalfinancials['Debt_by_EBIT'] = finalfinancials.Debt/finalfinancials.EBIT
+finalfinancials['Debt_by_NI'] = finalfinancials.Debt/finalfinancials.NI
+finalfinancials['Debt_by_Rev'] = finalfinancials.Debt/finalfinancials.Revenue
+finalfinancials['Debt_by_Assets'] = finalfinancials.Debt/finalfinancials.Assets
+
+print('getting differences')
+for col in ['NI_MAR','EBITDA_MAR','EBIT_MAR','CFO_MAR']:
+    finalfinancials[col+'_diff'] = diff(col)
+
+finalfinancials['P/E'] = pricerat('EPS')
+finalfinancials['P/EBIT'] = pricerat('EBIT_PS')
+finalfinancials['P/EBITDA'] = pricerat('EBITDA_PS')
+finalfinancials['P/Rev'] = pricerat('REV_PS')
+finalfinancials['P/Assets'] = pricerat('Assets_PS')
+finalfinancials['P/CFO'] = pricerat('CFO_PS')
+
+
+finalfinancials.sort_index(ascending=False,inplace=True)
+
+
+finalfinancials.drop(columns=['LTDebt','STDebt','CurrLTDebt','D&A','Interest','Tax',
+                              'NI','CFO','EV','CommonStockSharesOutstanding'],inplace=True)
 
 finalfinancials = pd.merge(finalfinancials,yoy_growth_by_naics,on=['naics_code','date'],how='left')
 finalfinancials = pd.merge(finalfinancials,qoq_growth_by_naics,on=['naics_code','date'],how='left')
@@ -415,7 +495,7 @@ finalfinancials = pd.merge(finalfinancials,qoq_growth_by_sector,on=['sector','da
 finalfinancials['date'] =  finalfinancials.index.get_level_values(0)
 finalfinancials.set_index(['ticker','date'],inplace=True)
 finalfinancials.sort_index(ascending=True,inplace=True)
-del rev_by_sector, yoy_growth_by_sector, qoq_growth_by_sector, rev_by_naics, yoy_growth_by_naics, qoq_growth_by_naics
+del rev_by_sector, yoy_growth_by_sector, qoq_growth_by_sector, rev_by_naics, yoy_growth_by_naics, qoq_growth_by_naics, allfinancials_merged, allfinancials, unformatted, formatted, results
 gc.collect()
 
 finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=TREASURY_YIELD&interval=daily&maturity=1mo&apikey={stockkey}','treasury_yield','daily',chg=True)
@@ -497,71 +577,6 @@ finalfinancials = feddata('PPIFIS','ppi_total','monthly',reset_month=True,change
 
 
 finalfinancials.drop(columns=['ticker'],inplace=True)
-
-finalfinancials[[x for x in finalfinancials.columns if 'sector' not in x]] = finalfinancials[[x for x in finalfinancials.columns if 'sector' not in x]].astype(float)
-finalfinancials.dropna(subset='NI',inplace=True)
-finalfinancials.sort_index(ascending=True,inplace=True)
-
-
-# finalfinancials['return_over_rf'] = finalfinancials['pct_chg_forward'] - finalfinancials.treasury_yield
-
-
-
-pershare = lambda col: finalfinancials[col]/finalfinancials['CommonStockSharesOutstanding']
-pricerat = lambda col: finalfinancials['price']/finalfinancials[col]
-margin = lambda col: finalfinancials[col]/finalfinancials['Revenue']
-diff = lambda col: finalfinancials[col].groupby('ticker').diff()
-
-finalfinancials['EPS'] = pershare('NI')
-finalfinancials['EBITDA_PS'] = pershare('EBITDA')
-finalfinancials['EBIT_PS'] = pershare('EBIT')
-finalfinancials['CFO_PS'] = pershare('CFO')
-finalfinancials['REV_PS'] = pershare('Revenue')
-
-finalfinancials['Assets_PS'] = pershare('Assets')
-
-finalfinancials['MarketCap'] = finalfinancials.price*finalfinancials.CommonStockSharesOutstanding
-finalfinancials['EV'] = finalfinancials['MarketCap'].fillna(0)+finalfinancials['Debt'].fillna(0)
-
-finalfinancials['EV/EBITDA'] = finalfinancials['EV'].fillna(0)/finalfinancials['EBITDA'].fillna(0)
-finalfinancials['EV/EBIT'] = finalfinancials['EV'].fillna(0)/finalfinancials['EBIT'].fillna(0)
-finalfinancials['EV/NI'] = finalfinancials['EV'].fillna(0)/finalfinancials['NI'].fillna(0)
-
-finalfinancials['NI_MAR'] = margin('NI')
-finalfinancials['EBITDA_MAR'] = margin('EBITDA')
-finalfinancials['EBIT_MAR'] = margin('EBIT')
-finalfinancials['CFO_MAR'] = margin('CFO')
-
-
-finalfinancials['Debt_by_EBITDA'] = finalfinancials.Debt/finalfinancials.EBITDA
-finalfinancials['Debt_by_EBIT'] = finalfinancials.Debt/finalfinancials.EBIT
-finalfinancials['Debt_by_NI'] = finalfinancials.Debt/finalfinancials.NI
-finalfinancials['Debt_by_Rev'] = finalfinancials.Debt/finalfinancials.Revenue
-finalfinancials['Debt_by_Assets'] = finalfinancials.Debt/finalfinancials.Assets
-
-print('getting differences')
-for col in ['NI_MAR','EBITDA_MAR','EBIT_MAR','CFO_MAR']:
-    finalfinancials[col+'_diff'] = diff(col)
-
-finalfinancials['P/E'] = pricerat('EPS')
-finalfinancials['P/EBIT'] = pricerat('EBIT_PS')
-finalfinancials['P/EBITDA'] = pricerat('EBITDA_PS')
-finalfinancials['P/Rev'] = pricerat('REV_PS')
-finalfinancials['P/Assets'] = pricerat('Assets_PS')
-finalfinancials['P/CFO'] = pricerat('CFO_PS')
-
-finalfinancials.sort_index(ascending=False,inplace=True)
-finalfinancials['MA_200'] = finalfinancials.groupby('ticker')['price'].rolling(200).mean().reset_index(level=0,drop=True)
-finalfinancials['MA_100'] = finalfinancials.groupby('ticker')['price'].rolling(100).mean().reset_index(level=0,drop=True)
-finalfinancials['MA_50'] = finalfinancials.groupby('ticker')['price'].rolling(50).mean().reset_index(level=0,drop=True)
-
-finalfinancials['pct_of_200'] = finalfinancials.price/finalfinancials['MA_200']
-finalfinancials['pct_of_100'] = finalfinancials.price/finalfinancials['MA_100']
-finalfinancials['pct_of_50'] = finalfinancials.price/finalfinancials['MA_50']
-
-finalfinancials['MA_50_by_200'] = finalfinancials['MA_50'] / finalfinancials['MA_200']
-finalfinancials['golden_cross'] = (finalfinancials['MA_50_by_200'] > 1) & (finalfinancials['MA_50_by_200'].groupby('ticker').shift(-1)<= 1)
-finalfinancials['death_cross'] = (finalfinancials['MA_50_by_200'] <= 1) & (finalfinancials['MA_50_by_200'].groupby('ticker').shift(-1) > 1)
 
 
 
