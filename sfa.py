@@ -77,7 +77,6 @@ def plot_recessions(varname,y=y,n_roll = 1,lag=None,maxvar = np.inf,minvar = -np
     
 
 def transform(series,choose=False):
-    global norms
     
     series.hist(bins=30)
     plt.title(series.name)
@@ -187,11 +186,7 @@ for col in data.columns:
 
 del data
 gc.collect()
-vifs = vifcalc(vifdata[[x for x in vifdata.columns if x != y and 'days_between' not in x.lower()]])
 
-highvif = vifs.loc[(vifs >= 5) & (vifs.index != 'const')].sort_values(ascending=False)
-
-vif_corr = pd.DataFrame({col:corrs_all[col].loc[(corrs_all[col] < 1) & (corrs_all[col] > 0.5)].to_dict() for col in highvif.index})
 
 
 
@@ -199,12 +194,11 @@ vif_corr = pd.DataFrame({col:corrs_all[col].loc[(corrs_all[col] < 1) & (corrs_al
 
 
 
-drop = [
+drop = ['man_by_ppi_ind','man_by_ppi_ind_pctchg_monthly','man_by_ppi_ind_pctchg_quarterly'
         #'EV','EV/EBIT','EV/NI','Debt_by_NI','P/EBITDA',
         ]
 
-vifdata_dropped = vifdata.drop(columns=drop)
-vifs_final = vifcalc(vifdata_dropped)
+
 
 
 data_mc_dropped = clippeddata.copy()[keepcols].drop(columns=drop)
@@ -264,4 +258,14 @@ for key in data_transformed.columns:
         stats[key] = {'R2':rsquared,'coef':coef,'p':pvalue}
 stats = pd.DataFrame(stats).T.sort_values(by='p',ascending=True)
 
+#%%
+print('Getting VIF data')
 
+vifs = vifcalc(vifdata[[x for x in vifdata.columns if x != y and 'days_between' not in x.lower()]])
+
+highvif = vifs.loc[(vifs >= 5) & (vifs.index != 'const')].sort_values(ascending=False)
+
+vif_corr = pd.DataFrame({col:corrs_all[col].loc[(corrs_all[col] < 1) & (corrs_all[col] > 0.5)].to_dict() for col in highvif.index})
+
+vifdata_dropped = vifdata.drop(columns=drop)
+vifs_final = vifcalc(vifdata_dropped)
