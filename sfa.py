@@ -13,7 +13,7 @@ from scipy.stats import shapiro, boxcox
 from statsmodels.regression.linear_model import OLS
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import root_mean_squared_error as rmse
-import matplotlib.pyplot as plt, os
+import matplotlib.pyplot as plt, os, gc
 
 os.chdir(r'C:\Users\paperspace\Documents\Coding Projects\Stock-Prediction-Model')
 
@@ -134,17 +134,20 @@ def transform(series,choose=False):
             return series
         
 
-def relgraph(x):
-    rollingmean = meanplotdata[[x,'price']].sort_values(by=x).dropna().rolling(1000).mean()
+def relgraph(x,y='price',roll=500):
+    rollingmean = meanplotdata[[x,y]].sort_values(by=x).dropna().rolling(roll).mean()
     rollingmean[x] = rollingmean[x].clip(lower = clip[x]['lower'],upper = clip[x]['upper'])
+    if y != 'price':
+        rollingmean[y] = rollingmean[y].clip(lower = -1,upper = min(1,rollingmean[y].median()+1.96*rollingmean[y].std()))
     
     fig, axes = plt.subplots(nrows=2, ncols=1, sharex=True)
     
-    rollingmean.plot(x=x,y='price',ax=axes[0])
+    rollingmean.plot(x=x,y=y,ax=axes[0])
     rollingmean[x].hist(ax=axes[1])
     plt.title(f'Graph of price by {x}')
+    plt.savefig(f'Plots\{y}_by_{x.replace("/","_")}.png')
     plt.show()
-    plt.savefig(f'Plots\price_by_{x.replace("/","_")}.png')
+    
 
         #%%
 
@@ -154,21 +157,18 @@ depvars = [x for x in data if 'pct_chg_forward' in x]
 
 
 
-#%% Plotting relationships
-
-meanplotdata = data.groupby('date').mean()
-
-clip = {x:{'lower':data[x].mean()-data[x].std()*1.96,'upper':data[x].mean()+data[x].std()*1.96} for x in data.columns if data[x].dtype != bool}
-
-for x in data.columns:
-    if x not in depvars and 'price' not in x and x in clip.keys():
-        relgraph(x)
 
 
-#%% Correlations, Etc.
 
-keepcols = [x for x in data.columns if '_MAR' in x or 'EV' in x or '_by' in x or '_diff' in x or '_growth' in x in x or '/' in x or 'chg' in x or 'yield' in x or 'return_over' in x  or 'fed_funds' in x or 'unemployment' in x]
+
+#%%
+print('Correlations, Etc.')
+
+keepcols = [x for x in data.columns
+            #if '_MAR' in x or 'EV' in x or '_by' in x or '_diff' in x or '_growth' in x in x or '/' in x or 'chg' in x or 'yield' in x or 'return_over' in x  or 'fed_funds' in x or 'unemployment' in x
+            ]
 clippeddata= data.copy()
+
 corrs_all = data.corr()
 corrs_all.to_excel('Analysis/corrs.xlsx')
 corrs = data.corr()[keepcols]
@@ -185,7 +185,8 @@ for col in data.columns:
     clippeddata[col] = clippeddata[col].clip(lower=min_byticker.min(),upper=max_byticker.max())
     clippeddata[col] = clippeddata[col].fillna(minmax.mean())
 
-
+del data
+gc.collect()
 vifs = vifcalc(vifdata[[x for x in vifdata.columns if x != y and 'days_between' not in x.lower()]])
 
 highvif = vifs.loc[(vifs >= 5) & (vifs.index != 'const')].sort_values(ascending=False)
@@ -198,7 +199,9 @@ vif_corr = pd.DataFrame({col:corrs_all[col].loc[(corrs_all[col] < 1) & (corrs_al
 
 
 
-drop = ['EV','EV/EBIT','EV/NI','Debt_by_NI','P/EBITDA',]
+drop = [
+        #'EV','EV/EBIT','EV/NI','Debt_by_NI','P/EBITDA',
+        ]
 
 vifdata_dropped = vifdata.drop(columns=drop)
 vifs_final = vifcalc(vifdata_dropped)
@@ -206,10 +209,11 @@ vifs_final = vifcalc(vifdata_dropped)
 
 data_mc_dropped = clippeddata.copy()[keepcols].drop(columns=drop)
 
+del clippeddata
+gc.collect()
 
-
-
-#%% Normalizing
+#%%
+print('Normalizing')
 
 sh_result = pd.Series()
 for c in data_mc_dropped.columns:
@@ -227,14 +231,29 @@ for c in transforms.columns:
 data_transformed= data_mc_dropped.copy()
 for c in data_transformed.columns:
     data_transformed[c] = transform(data_transformed[c],choose=True)
-    
+del data_mc_dropped
+gc.collect()
+#%%
+print('Plotting relationships')
 
-#%% Choosing from buckets for high vif variables that serve similar purposes:
+meanplotdata = data_transformed.groupby('date').mean()
 
+clip = {x:{'lower':data_transformed[x].mean()-data_transformed[x].std()*1.96,'upper':data_transformed[x].mean()+data_transformed[x].std()*1.96} for x in data_transformed.columns if data_transformed[x].dtype != bool}
+
+for x in data_transformed.columns:
+    if x not in depvars and 'price' not in x and x in clip.keys():
+        relgraph(x)
+        
+        #%% data capping and flooring based on above results
+
+        
+
+#%% 
+print('Choosing from buckets for high vif variables that serve similar purposes:')
 stats = {}
 
 for key in data_transformed.columns:
-    if key not in ['pct_chg_forward']:
+    if key not in depvars:
         data_const = add_constant(data_transformed[[key,y]])
         model = OLS(exog=data_const[[key,'const']],endog=data_const[y],hasconst=True)
         results = model.fit()
@@ -244,14 +263,5 @@ for key in data_transformed.columns:
         rsquared = results.rsquared_adj
         stats[key] = {'R2':rsquared,'coef':coef,'p':pvalue}
 stats = pd.DataFrame(stats).T.sort_values(by='p',ascending=True)
-
-
-buckets = [[x for x in stats.index if 'PS' in x],
-           [x for x in stats.index if 'P/' in x or 'EV/' in x],
-           [x for x in stats.index if '_MAR' in x],
-           [x for x in stats.index if 'debt_by' in x.lower()]]
-bucketedcols = [x for y in buckets for x in y]
-unbucketedcols = [x for x in stats.index if x not in bucketedcols and x not in ['pct_chg_forward']]
-allcols = unbucketedcols + buckets
 
 
