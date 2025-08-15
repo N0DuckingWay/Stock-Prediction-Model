@@ -8,3 +8,5 @@ import gc
 import datagathering
 gc.collect()
 import variablecreation
+gc.collect()
+import data_transformations
