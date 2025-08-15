@@ -199,7 +199,7 @@ sh_result.sort_values(ascending=False,inplace=True)
   
 transforms = pd.DataFrame(columns = data_mc_dropped.columns)
 for c in transforms.columns:
-    if data_mc_dropped[c].sum() != data_mc_dropped[c].count():
+    if len(set(data_mc_dropped[c].round(5))) > 2:
         transforms[c] = transform(data_mc_dropped[c])
 transforms.to_excel('transforms.xlsx')
     
