@@ -65,7 +65,7 @@ stats = {}
 
 for key in data_transformed.columns: 
     if key not in depvars:
-        data_const = add_constant(data_transformed[[key,y]])
+        data_const = add_constant(data_transformed[[key,y]],has_constant='add')
         model = OLS(exog=data_const[[key,'const']],endog=data_const[y],hasconst=True)
         results = model.fit()
         pvalue = results.pvalues[key]
