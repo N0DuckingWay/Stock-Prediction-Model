@@ -144,7 +144,7 @@ data = pd.read_pickle('Data/financials.p').drop(columns='sector')
 
 
 #%%
-print('Correlations, Etc.')
+print('Capping and flooring data')
 
 clippeddata= data.copy()
 
