@@ -42,6 +42,8 @@ print('Plotting relationships')
 
 
 data_transformed = pd.read_pickle(r'Data\normalized.p')
+bools = list(data_transformed.dtypes.loc[data_transformed.dtypes=='bool'].index)
+data_transformed[bools] = data_transformed[bools].astype(int)
 keepcols = [x for x in data_transformed.columns]
             
 meanplotdata = data_transformed.groupby('date').mean()
