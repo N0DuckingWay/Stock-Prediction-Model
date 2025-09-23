@@ -17,6 +17,8 @@ vifcalc = lambda vfdata: pd.Series({vfdata.columns[i]:vif(vfdata.astype(float),i
 warnings.filterwarnings("ignore")
 y = 'pct_chg_forward_weekly'
 
+
+
 def relgraph(meanplotdata,x,y='price',roll=500):
     rollingmean = meanplotdata[[x,y]].sort_values(by=x).dropna().rolling(roll).mean()
     rollingmean[x] = rollingmean[x].clip(lower = clip[x]['lower'],upper = clip[x]['upper'])
@@ -30,7 +32,8 @@ def relgraph(meanplotdata,x,y='price',roll=500):
     plt.title(f'Graph of {y} by {x}')
     plt.savefig(f'Plots\{y}_by_{x.replace("/","_")}.png')
     plt.show()
-
+    
+    #TODO: put in code to graph the "x" and "y" variables as y variables on the same graph, with the x axis being the date.
 
 
 
