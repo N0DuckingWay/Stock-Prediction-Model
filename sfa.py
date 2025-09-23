@@ -20,7 +20,10 @@ y = 'pct_chg_forward_weekly'
 
 
 def relgraph(meanplotdata,x,y='price',roll=500):
-    rollingmean = meanplotdata[[x,y]].sort_values(by=x).dropna().rolling(roll).mean()
+    cutdata = meanplotdata[[x,y]].copy()
+    rollingmean = cutdata.sort_values(by=x).dropna().rolling(roll).mean()
+    
+    
     rollingmean[x] = rollingmean[x].clip(lower = clip[x]['lower'],upper = clip[x]['upper'])
     if y != 'price':
         rollingmean[y] = rollingmean[y].clip(lower = -1,upper = min(1,rollingmean[y].median()+1.96*rollingmean[y].std()))
@@ -33,9 +36,53 @@ def relgraph(meanplotdata,x,y='price',roll=500):
     plt.savefig(f'Plots\{y}_by_{x.replace("/","_")}.png')
     plt.show()
     
-    #TODO: put in code to graph the "x" and "y" variables as y variables on the same graph, with the x axis being the date.
+    
 
+def tscompare(meanplotdata,x,dep='price',roll=10,begin=None,end=None):
+    cutdata = meanplotdata[[x,dep]].copy()
+    
+    
+    rollingmean_bydate = cutdata.sort_index(ascending=False).dropna().rolling(roll).median()
+    
+    if begin != None:
+        rollingmean_bydate = rollingmean_bydate.loc[rollingmean_bydate.index>=begin]
+    
+    if end != None:
+        rollingmean_bydate = rollingmean_bydate.loc[rollingmean_bydate.index<=end]
+    
+    fig, ax1 = plt.subplots()
+    ax2 = ax1.twinx()
+    ax1.plot(rollingmean_bydate.index,rollingmean_bydate[x],label=x,color="black")
+    ax2.plot(rollingmean_bydate.index,rollingmean_bydate[dep],label=dep,color="red")
+    
+    # Get handles and labels from both axes
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    
+    # Combine them
+    ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
+    ax1.set_xlabel('Date')
+    ax1.set_ylabel(x,color="black")
+    ax1.tick_params(axis='y',color='black')
+    ax1.spines['left'].set_color('black')
+    ax2.set_ylabel(dep,color='red')
+    ax2.tick_params(axis='y',color='red')
+    ax2.spines['right'].set_color('red')
+    plt.title(f'Comparison of {x} and {dep} over time')
+    
+    plt.savefig(f'Plots\compare_{x.replace("/","_")}_and_{dep}_over_time.png')
+    plt.show()
+    
+    return rollingmean_bydate
 
+def graphstock(data,ticker,price='price'):
+    global tickdata
+    tickdata = data.loc[data.index.get_level_values('ticker')==ticker][price]
+    tickdata.sort_index(ascending=False)
+    tickdata.plot()
+    plt.xticks(rotation=45)
+    plt.show()
+    
 
 drop = ['man_by_ppi_ind','man_by_ppi_ind_pctchg_monthly','man_by_ppi_ind_pctchg_quarterly'
         #'EV','EV/EBIT','EV/NI','Debt_by_NI','P/EBITDA',
@@ -56,9 +103,13 @@ depvars = [x for x in data_transformed if 'pct_chg_forward' in x]
 for x in data_transformed.columns:
     if x not in depvars and 'price' not in x and "pct_chg_forward" not in x and x in clip.keys():
         relgraph(meanplotdata,x)
+        tscompare(meanplotdata,x)
         relgraph(meanplotdata,x,y='pct_chg_forward_weekly')
+        tscompare(meanplotdata,x,dep='pct_chg_forward_weekly')
         relgraph(meanplotdata,x,y='pct_chg_forward_monthly')
+        tscompare(meanplotdata,x,dep='pct_chg_forward_monthly')
         relgraph(meanplotdata,x,y='pct_chg_forward_quarterly')
+        tscompare(meanplotdata,x,dep='pct_chg_forward_quarterly')
         
         #%% data capping and flooring based on above results
 
