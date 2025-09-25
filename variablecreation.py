@@ -411,7 +411,7 @@ finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?fu
 finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=UNEMPLOYMENT&apikey={stockkey}','unemployment','monthly',reset_month=True,chg=True)
 finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=NONFARM_PAYROLL&apikey={stockkey}','nonfarm_payroll','monthly',reset_month=True,growth=True)
 
-finalfinancials['yield_curve_spread'] = finalfianancials['treasury_yield_10yr']-finalfinancials['treasury_yield_3mo']
+finalfinancials['yield_curve_spread'] = finalfinancials['treasury_yield_10yr']-finalfinancials['treasury_yield_3mo']
 
 
 #Consumer Sentiment Data
@@ -498,7 +498,7 @@ finalfinancials_merged = pd.merge(finalfinancials,sector,how='inner',left_index=
 
 #%%
 
-finalfinancials_merged.dropna(subset='pct_chg_forward')
+finalfinancials_merged.dropna(subset='pct_chg_forward_weekly')
 
 finalfinancials_merged.to_pickle('Data/financials.p')
 
