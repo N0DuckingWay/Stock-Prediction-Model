@@ -76,9 +76,10 @@ def transform(series,choose=False):
     
     series.hist(bins=30)
     plt.title(series.name)
+    plt.savefig(rf'Distribution Plots/{series.name}.png')
     plt.show()
     
-    series = series.fillna(0) #this is ok because only the slope_std values are null, and that's only for runs with two points
+    series = series.dropna()
     norms = pd.DataFrame(index=['stat','p'])
     
     if series.max() < 0:
@@ -113,6 +114,8 @@ def transform(series,choose=False):
         out['best'] = best
         return out
     else:
+        if norms.p.max() <= 0.05:
+            return series
         maxval = norms.loc[(norms.p == norms.p.max()) & (norms.p > 0.0)].index[0]
         print(f'Transforming {series.name} using {maxval}')
         if maxval == 'ln':
@@ -122,7 +125,9 @@ def transform(series,choose=False):
         elif maxval == 'sqrt':
             return np.sqrt(series)
         elif maxval == 'bc':
-            return boxcox(series)[0]
+            out = boxcox(series)[0]
+            if len(set(out)) == 1:
+                return series
         elif maxval == 'logit':
             return np.log(series.replace(1,0.99999).replace(0,0.0001)/(1-series.replace(1,0.99999).replace(0,0.0001)))
         else:
@@ -153,12 +158,12 @@ clippeddata= data.copy()
 
 for col in data.columns:
     minmax = clippeddata[col].loc[(clippeddata[col] != float('inf')) & (clippeddata[col] != float('-inf'))]
-    min_byticker = minmax.groupby('ticker').min()
-    max_byticker = minmax.groupby('ticker').max()
+    # min_byticker = minmax.groupby('ticker').min()
+    # max_byticker = minmax.groupby('ticker').max()
         
     
-    clippeddata[col] = clippeddata[col].clip(lower=min_byticker.min(),upper=max_byticker.max())
-    clippeddata[col] = clippeddata[col].fillna(minmax.mean())
+    clippeddata[col] = clippeddata[col].clip(lower=minmax.min(),upper=minmax.max())
+    # clippeddata[col] = clippeddata[col].fillna(minmax.mean())
 
 del data
 gc.collect()

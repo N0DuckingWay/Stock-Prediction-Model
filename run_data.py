@@ -4,9 +4,13 @@ Created on Wed Aug 13 08:56:19 2025
 
 @author: Paperspace
 """
-import gc
+import gc, os
+os.chdir(r'C:\Users\paperspace\Documents\Coding Projects\Stock-Prediction-Model')
 import datagathering
 gc.collect()
 import variablecreation
 gc.collect()
 import data_transformations
+gc.collect()
+import sfa
+gc.collect()
