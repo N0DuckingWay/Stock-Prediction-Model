@@ -399,10 +399,11 @@ finalfinancials.sort_index(ascending=True,inplace=True)
 del rev_by_sector, yoy_growth_by_sector, qoq_growth_by_sector, rev_by_naics, yoy_growth_by_naics, qoq_growth_by_naics, allfinancials_merged, allfinancials, unformatted, formatted, results
 gc.collect()
 
-finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=TREASURY_YIELD&interval=daily&maturity=1mo&apikey={stockkey}','treasury_yield','daily',chg=True)
+finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=TREASURY_YIELD&interval=daily&maturity=1mo&apikey={stockkey}','treasury_yield_1mo','daily',chg=True)
+finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=TREASURY_YIELD&interval=daily&maturity=3mo&apikey={stockkey}','treasury_yield_3mo','daily',chg=True)
+finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=TREASURY_YIELD&interval=daily&maturity=10yr&apikey={stockkey}','treasury_yield_10yr','daily',chg=True)
 finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=WTI&interval=daily&apikey={stockkey}','wti_crude_price','daily',growth=True)
 finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=ALL_COMMODITIES&interval=monthly&apikey={stockkey}','commodity_index','monthly',reset_month=True,growth=True)
-finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=REAL_GDP&interval=quarterly&apikey={stockkey}','real_gdp','quarterly',reset_month=True,growth=True)
 finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=FEDERAL_FUNDS_RATE&interval=daily&apikey={stockkey}','fed_funds_rate','daily',chg=True)
 finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=CPI&interval=monthly&apikey={stockkey}','cpi','monthly',reset_month=True,growth=True)
 finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=RETAIL_SALES&apikey={stockkey}','retail_sales','monthly',reset_month=True,growth=True)
@@ -410,6 +411,7 @@ finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?fu
 finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=UNEMPLOYMENT&apikey={stockkey}','unemployment','monthly',reset_month=True,chg=True)
 finalfinancials = getdata(finalfinancials,f'https://www.alphavantage.co/query?function=NONFARM_PAYROLL&apikey={stockkey}','nonfarm_payroll','monthly',reset_month=True,growth=True)
 
+finalfinancials['yield_curve_spread'] = finalfianancials['treasury_yield_10yr']-finalfinancials['treasury_yield_3mo']
 
 
 #Consumer Sentiment Data
@@ -458,8 +460,13 @@ finalfinancials = feddata('DRBLACBS','business_loan_delinquency','quarterly',res
 
 finalfinancials = feddata('CSUSHPISA','home_price','monthly',reset_month=True,change=False, pctchange=True,source='fred')
 
+finalfinancials = feddata('BAMLC0A1CAAAEY','ig_bond_yield','daily',reset_month=True,change=True, pctchange=True,source='fred')
+finalfinancials = feddata('BAMLC0A1CAAA','ig_bond_oas_spread','daily',reset_month=True,change=True, pctchange=True,source='fred')
+
 finalfinancials = feddata('BAMLH0A0HYM2EY','junk_bond_yield','daily',reset_month=True,change=True, pctchange=True,source='fred')
 finalfinancials = feddata('BAMLH0A0HYM2','junk_bond_oas_spread','daily',reset_month=True,change=True, pctchange=True,source='fred')
+
+finalfinancials['junk_bond_credit_spread'] = finalfinancials['junk_bond_yield'] - finalfinancials['ig_bond_yield']
 
 finalfinancials = feddata('RETAILIRSA','retailer_inventories_by_sales','monthly',reset_month=True,change=False, pctchange=True,source='fred')
 finalfinancials = feddata('TOTALSA','vehicle_sales','monthly',reset_month=True,change=False, pctchange=True,source='fred')
