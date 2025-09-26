@@ -79,59 +79,63 @@ def transform(series,choose=False):
     plt.savefig(rf'Distribution Plots/{series.name}.png')
     plt.show()
     
-    series = series.dropna()
-    norms = pd.DataFrame(index=['stat','p'])
+    if len(set(series)) > 1: #if series is constant for any reason.
     
-    if series.max() < 0:
-        series = series * -1
-        t = '*-1'
-    elif series.max() >= 0 and series.min() < 0:
-        series = series-series.min()+1
-        t = '+min+1'
-    elif series.min() == 0:
-        series = series + 1
-        t = '+1'
-    else:
-        t = 'none'
-    
-    norms['none']= shapiro(series)
-    norms['ln'] = shapiro(np.log(series))
-    norms['log10'] = shapiro(np.log10(series))
-    norms['sqrt'] = shapiro(np.sqrt(series))
-    bc = boxcox(series)
-    norms['bc'] = shapiro(bc[0])
-    norms['logit'] = shapiro(np.log(series.replace(1,0.99999).replace(0,0.0001)/(1-series.replace(1,0.99999).replace(0,0.0001))))
-    
-    norms['bc_lambda'] = bc[1]
-    norms = norms.T
-    
-    best = norms['p'].drop(index=['bc_lambda']).loc[norms['p'].drop(index=['bc_lambda'])==norms['p'].drop(index=['bc_lambda']).max()].index[0]
-    if (norms['p'][best] <= norms['p']['none'] + .05) and (norms['p'][best] <= norms['p']['none']*2):
-        best = 'none'
-    
-    if choose==False:
-        out = pd.concat([norms['p'],pd.Series({'transform':t})])
-        out['best'] = best
-        return out
-    else:
-        if norms.p.max() <= 0.05:
-            return series
-        maxval = norms.loc[(norms.p == norms.p.max()) & (norms.p > 0.0)].index[0]
-        print(f'Transforming {series.name} using {maxval}')
-        if maxval == 'ln':
-            return np.log(series)
-        elif maxval == 'log10':
-            return np.log10(series)
-        elif maxval == 'sqrt':
-            return np.sqrt(series)
-        elif maxval == 'bc':
-            out = boxcox(series)[0]
-            if len(set(out)) == 1:
-                return series
-        elif maxval == 'logit':
-            return np.log(series.replace(1,0.99999).replace(0,0.0001)/(1-series.replace(1,0.99999).replace(0,0.0001)))
+        series = series.dropna()
+        norms = pd.DataFrame(index=['stat','p'])
+        
+        if series.max() < 0:
+            series = series * -1
+            t = '*-1'
+        elif series.max() >= 0 and series.min() < 0:
+            series = series-series.min()+1
+            t = '+min+1'
+        elif series.min() == 0:
+            series = series + 1
+            t = '+1'
         else:
-            return series
+            t = 'none'
+        
+        norms['none']= shapiro(series)
+        norms['ln'] = shapiro(np.log(series))
+        norms['log10'] = shapiro(np.log10(series))
+        norms['sqrt'] = shapiro(np.sqrt(series))
+        bc = boxcox(series)
+        norms['bc'] = shapiro(bc[0])
+        norms['logit'] = shapiro(np.log(series.replace(1,0.99999).replace(0,0.0001)/(1-series.replace(1,0.99999).replace(0,0.0001))))
+        
+        norms['bc_lambda'] = bc[1]
+        norms = norms.T
+        
+        best = norms['p'].drop(index=['bc_lambda']).loc[norms['p'].drop(index=['bc_lambda'])==norms['p'].drop(index=['bc_lambda']).max()].index[0]
+        if (norms['p'][best] <= norms['p']['none'] + .05) and (norms['p'][best] <= norms['p']['none']*2):
+            best = 'none'
+        
+        if choose==False:
+            out = pd.concat([norms['p'],pd.Series({'transform':t})])
+            out['best'] = best
+            return out
+        else:
+            if norms.p.max() <= 0.05:
+                return series
+            maxval = norms.loc[(norms.p == norms.p.max()) & (norms.p > 0.0)].index[0]
+            print(f'Transforming {series.name} using {maxval}')
+            if maxval == 'ln':
+                return np.log(series)
+            elif maxval == 'log10':
+                return np.log10(series)
+            elif maxval == 'sqrt':
+                return np.sqrt(series)
+            elif maxval == 'bc':
+                out = boxcox(series)[0]
+                if len(set(out)) == 1:
+                    return series
+            elif maxval == 'logit':
+                return np.log(series.replace(1,0.99999).replace(0,0.0001)/(1-series.replace(1,0.99999).replace(0,0.0001)))
+            else:
+                return series
+    else:
+        return series
         
 
 
