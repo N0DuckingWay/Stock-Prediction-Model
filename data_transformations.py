@@ -201,12 +201,14 @@ sh_result.sort_values(ascending=False,inplace=True)
 transforms = pd.DataFrame(columns = data_mc_dropped.columns)
 for c in transforms.columns:
     if len(set(data_mc_dropped[c].round(5))) > 2:
+        print(f'Getting best transformation for {c}')
         transforms[c] = transform(data_mc_dropped[c])
 transforms.to_excel('transforms.xlsx')
     
 data_transformed= data_mc_dropped.copy()
 for c in data_transformed.columns:
     if len(set(data_mc_dropped[c])) > 2: 
+        print(f'Transforming {c}')
         data_transformed[c] = transform(data_transformed[c],choose=True)
 
 data_transformed.to_pickle(r'Data\normalized.p')
