@@ -79,7 +79,7 @@ def transform(series,choose=False):
     plt.savefig(rf'Distribution Plots/{series.name}.png')
     plt.show()
     
-    if len(set(series)) > 1: #if series is constant for any reason.
+    if len(set(series.dropna())) > 1: #if series is constant for any reason.
     
         series = series.dropna()
         norms = pd.DataFrame(index=['stat','p'])
@@ -97,13 +97,18 @@ def transform(series,choose=False):
             t = 'none'
         
         norms['none']= shapiro(series)
-        norms['ln'] = shapiro(np.log(series))
-        norms['log10'] = shapiro(np.log10(series))
-        norms['sqrt'] = shapiro(np.sqrt(series))
+        log = np.log(series)
+        norms['ln'] = shapiro(log)
+        log10 = np.log10(series)
+        norms['log10'] = shapiro(log10)
+        sqrt=np.sqrt(series)
+        norms['sqrt'] = shapiro(sqrt)
         bc = boxcox(series)
         norms['bc'] = shapiro(bc[0])
-        norms['logit'] = shapiro(np.log(series.replace(1,0.99999).replace(0,0.0001)/(1-series.replace(1,0.99999).replace(0,0.0001))))
+        logit = np.log(series.replace(1,0.99999).replace(0,0.0001)/(1-series.replace(1,0.99999).replace(0,0.0001)))
+        norms['logit'] = shapiro(logit)
         
+        transform_p = norms.copy()
         norms['bc_lambda'] = bc[1]
         norms = norms.T
         
@@ -116,22 +121,22 @@ def transform(series,choose=False):
             out['best'] = best
             return out
         else:
-            if norms.p.max() <= 0.05:
+            if transform_p.p.max() <= 0.05:
                 return series
-            maxval = norms.loc[(norms.p == norms.p.max()) & (norms.p > 0.0)].index[0]
+            maxval = transform_p.loc[(transform_p.p == transform_p.p.max()) & (transform_p.p > 0.0)].index[0]
             print(f'Transforming {series.name} using {maxval}')
             if maxval == 'ln':
-                return np.log(series)
+                return log
             elif maxval == 'log10':
-                return np.log10(series)
+                return log10
             elif maxval == 'sqrt':
-                return np.sqrt(series)
+                return sqrt
             elif maxval == 'bc':
-                out = boxcox(series)[0]
-                if len(set(out)) == 1:
+                out = bc[0]
+                if len(set(out.dropna())) == 1:
                     return series
             elif maxval == 'logit':
-                return np.log(series.replace(1,0.99999).replace(0,0.0001)/(1-series.replace(1,0.99999).replace(0,0.0001)))
+                return logit
             else:
                 return series
     else:
