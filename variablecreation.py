@@ -5,7 +5,7 @@ Created on Mon Aug  4 17:38:29 2025
 
 @author: zdhoffman
 """
-import pandas as pd, requests, json, os, gc
+import pandas as pd, requests, json, os, gc, datetime
 
 
 
@@ -13,6 +13,25 @@ import pandas as pd, requests, json, os, gc
 stockkey = 'GJT87YF8QI5GZUND'
 blskey = '6eebf73b51c642fe8914b9b72cc73569'
 fredkey = '84a26b17b51a63ed7dae3c7936a19d02'
+
+
+def releaseshiftcalc(indate,dayofweek,weekofmonth):
+    ''' for shifting the date in indate to the date defined by dayofweek and weekofmonth. Example: dayofweek=0 and weekofmonth=1
+    shifts the date to the first monday of the month'''
+    nextmonth = indate.month =1
+    if nextmonth > 12:
+        nextmonth=1
+        nextmonthyear = indate.year+1
+    else:
+        nextmonthyear = indate.year
+    nextmonthstart = pd.to_datetime(f'{nextmonth}-01-{nextmonthyear}')
+    nextmonthstart_plusweeks = nextmonthstart + datetime.timedelta(weekofmonth)
+    finalshift = dayofweek - nextmonthstart_plusweeks.weekday
+    if nextmonthstart_plusweeks.weekday <= dayofweek:
+        finalshift = finalshift-7
+    
+    finaldate = nextmonthstart_plusweeks + datetime.timedelta(days=finalshift)
+    return finaldate
 
 #%%
 allfinancials = pd.read_pickle('Data/allfinancials.p')
@@ -95,6 +114,9 @@ for result in results:
 unformatted['month_start'] = pd.to_datetime(unformatted['year'].astype(str)+'-'+unformatted['period'].str.replace('M','')+'-01')
 
 unformatted['month_end'] = pd.to_datetime(unformatted['year'].astype(str)+'-'+unformatted['period'].str.replace('M','')+'-'+unformatted.month_start.dt.days_in_month.astype(str))
+
+unformatted['report_date'] = unformatted['month_end'].apply(releaseshiftcalc,args=[4,1])
+
 unformatted['value'] = unformatted['value'].astype(float)
 formatted = pd.merge(unformatted,series_naics,left_on='seriesID',right_on='seriesID')[['month_end','NAICS Code(1)','value']].rename(columns={'value':'industry_employment','NAICS Code(1)':'naics_code'})
 formatted.sort_values(by=['month_end'],ascending=True,inplace=True)
@@ -112,7 +134,54 @@ allfinancials_merged.set_index(['ticker','date'],inplace=True)
 
 #%% creating summary values
 print('adding in computed variables and other economic data')
-def getdata(alldata,url,valname,period,reset_month = False,chg=False,growth=False, source='bls',merge=True,mindate = '1999-12-31'):
+def getdata(alldata,url,valname,period,reset_month = False,chg=False,growth=False, source='bls',merge=True,mindate = '1999-12-31',dateshift=0,shiftperiod='D',releasedate=None):
+    '''
+    Gets data from data source in url and merges it into alldata
+
+    Parameters
+    ----------
+    alldata : DataFrame
+        Data to merge into.
+    url : String
+        url to query.
+    valname : String
+        base name for new columns resulting from data gathered from url.
+    period : String
+        Time period of data.
+    reset_month : Bool, optional
+        Reset date to end of month or end of quarter. The default is False.
+    chg : Bool, optional
+        Output columns showing period over period change. The default is False.
+    growth : Bool, optional
+        Output columns showing period over period percent growth. The default is False.
+    source : String, optional
+        Source of data. Affects how data is read. Having incorrect source could lead to an error. The default is 'bls'.
+    merge : Bool, optional
+        True = merge data into alldata. The default is True.
+    mindate : String, optional
+        Minimum date cutoff. The default is '1999-12-31'.
+    releasedate : list, optional:
+        Release date of economic data gathered. In form of [Day of week of release (0-6, 0 = Monday), week of month of release]. Default is None.
+    dateshift : Int, optional
+        Number of days/months/years to shift by. The default is 0.
+    shiftperiod : str, optional
+        Period to shift by. Either 'D','M', or 'Y'. Default is 'D'.
+
+    Raises
+    ------
+    Exception
+        General issues reading data from 'url'.
+    ValueError
+        Highlights when user inputs invalid value for period. Must be daily, weekly, monthly, or yearly.
+
+    Returns
+    -------
+    Dataframe
+        An output of the data pulled from 'url'.
+
+    '''
+    
+    
     print(f'pulling data for {valname}.')
     moddata = alldata.copy()
     moddata['date_sort'] = pd.to_datetime([x[1] for x in moddata.index])
@@ -124,6 +193,21 @@ def getdata(alldata,url,valname,period,reset_month = False,chg=False,growth=Fals
             newdata = pd.DataFrame(response.json()['observations']).sort_values(by='date',ascending=True).set_index('date').rename(columns={'value':valname})
             newdata.drop(columns=['realtime_start','realtime_end'],inplace=True)
         newdata.index = pd.to_datetime(newdata.index)
+        if releasedate is not None:
+            dayofweek = releasedate[0]
+            weekofmonth = releasedate[1]
+            
+            
+            
+            newdata.index = [releaseshiftcalc(date,dayofweek,weekofmonth) for date in newdata.index]
+            
+                    
+                
+                
+        if shiftperiod in ['Y','M','D']:
+            newdata.index = newdata.index.shift(dateshift,shiftperiod)
+        else:
+            raise ValueError(f'{shiftperiod} is an invalid value for shiftperiod. Accepted values or "D","M","Y"')
         newdata = newdata.loc[newdata[valname] != '.']
         if reset_month == True:
             #resets the date to the month or quarter end
@@ -304,7 +388,7 @@ finalfinancials['naics_code'] = allfinancials_merged['naics_code']
 # finalfinancials['ticker'] = finalfinancials.index.get_level_values(0)
 # finalfinancials['date'] = finalfinancials.index.get_level_values(1)
 
-feddata = lambda series,name,period,reset_month,change,pctchange,source,merge=True: getdata(finalfinancials,f'https://api.stlouisfed.org/fred/series/observations?series_id={series}&api_key={fredkey}&file_type=json',name,period,reset_month=reset_month,chg=change, growth=pctchange,source=source,merge=merge)
+feddata = lambda series,name,period,reset_month,change,pctchange,source,merge=True,dateshift=0,shiftperiod='D',releasedate = None: getdata(finalfinancials,f'https://api.stlouisfed.org/fred/series/observations?series_id={series}&api_key={fredkey}&file_type=json',name,period,reset_month=reset_month,chg=change, growth=pctchange,source=source,merge=merge,releasedate=releasedate)
 
 finalfinancials['man_by_ppi_ind'] = float('nan')
 # print('done creating all in one ppi')
