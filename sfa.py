@@ -50,7 +50,7 @@ def tscompare(meanplotdata,x,dep='price',roll=10,begin=None,end=None):
     if end != None:
         rollingmean_bydate = rollingmean_bydate.loc[rollingmean_bydate.index<=end]
     
-    fig, ax1 = plt.subplots()
+    fig, ax1 = plt.subplots(constrained_layout=True)
     ax2 = ax1.twinx()
     ax1.plot(rollingmean_bydate.index,rollingmean_bydate[x],label=x,color="black")
     ax2.plot(rollingmean_bydate.index,rollingmean_bydate[dep],label=dep,color="red")
@@ -60,7 +60,7 @@ def tscompare(meanplotdata,x,dep='price',roll=10,begin=None,end=None):
     lines2, labels2 = ax2.get_legend_handles_labels()
     
     # Combine them
-    ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
+    ax1.legend(lines1 + lines2, labels1 + labels2, bbox_to_anchor=(1.05,0.5))
     ax1.set_xlabel('Date')
     ax1.set_ylabel(x,color="black")
     ax1.tick_params(axis='y',color='black')
