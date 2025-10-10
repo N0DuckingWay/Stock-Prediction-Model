@@ -33,7 +33,8 @@ def relgraph(meanplotdata,x,y='price',roll=500):
     rollingmean.plot(x=x,y=y,ax=axes[0])
     rollingmean[x].hist(ax=axes[1],bins=min(30,len(meanplotdata[x].round(5).drop_duplicates())))
     plt.title(f'Graph of {y} by {x}')
-    plt.savefig(f'Plots\{y}_by_{x.replace("/","_")}.png')
+    plt.tight_layout(pad=1.25)
+    plt.savefig(f'Plots\{y}_by_{x.replace("/","_")}.png',bbox_inches='tight' )
     plt.show()
     
     
@@ -69,14 +70,15 @@ def tscompare(meanplotdata,x,dep='price',roll=10,begin=None,end=None):
     ax2.tick_params(axis='y',color='red')
     ax2.spines['right'].set_color('red')
     plt.title(f'Comparison of {x} and {dep} over time')
+    plt.tight_layout(pad=1.25)
+    plt.savefig(f'Plots\compare_{x.replace("/","_")}_and_{dep}_over_time.png',bbox_inches='tight' )
     
-    plt.savefig(f'Plots\compare_{x.replace("/","_")}_and_{dep}_over_time.png')
     plt.show()
     
     return rollingmean_bydate
 
 def graphstock(data,ticker,price='price'):
-    global tickdata
+    
     tickdata = data.loc[data.index.get_level_values('ticker')==ticker][price]
     tickdata.sort_index(ascending=False)
     tickdata.plot()
@@ -92,7 +94,7 @@ print('Plotting relationships')
 
 
 data_transformed = pd.read_pickle(r'Data\normalized.p')
-raise Exception
+
 bools = list(data_transformed.dtypes.loc[data_transformed.dtypes=='bool'].index)
 data_transformed[bools] = data_transformed[bools].astype(int)
 keepcols = [x for x in data_transformed.columns]
@@ -101,16 +103,22 @@ meanplotdata = data_transformed.groupby('date').mean()
 
 clip = {x:{'lower':data_transformed[x].mean()-data_transformed[x].std()*1.96,'upper':data_transformed[x].mean()+data_transformed[x].std()*1.96} for x in data_transformed.columns if data_transformed[x].dtype != bool}
 depvars = [x for x in data_transformed if 'pct_chg_forward' in x]
-for x in data_transformed.columns:
-    if x not in depvars and 'price' not in x and "pct_chg_forward" not in x and x in clip.keys():
-        relgraph(meanplotdata,x)
-        tscompare(meanplotdata,x)
-        relgraph(meanplotdata,x,y='pct_chg_forward_weekly')
-        tscompare(meanplotdata,x,dep='pct_chg_forward_weekly')
-        relgraph(meanplotdata,x,y='pct_chg_forward_monthly')
-        tscompare(meanplotdata,x,dep='pct_chg_forward_monthly')
-        relgraph(meanplotdata,x,y='pct_chg_forward_quarterly')
-        tscompare(meanplotdata,x,dep='pct_chg_forward_quarterly')
+indepvars = [x for x in data_transformed.columns if x not in depvars and 'price' not in x and 'pct_chg_forward' not in x and x in clip.keys()]
+for x in indepvars:
+    relgraph(meanplotdata,x)
+    tscompare(meanplotdata,x)
+    relgraph(meanplotdata,x,y='pct_chg_forward_weekly')
+    tscompare(meanplotdata,x,dep='pct_chg_forward_weekly')
+    relgraph(meanplotdata,x,y='pct_chg_forward_monthly')
+    tscompare(meanplotdata,x,dep='pct_chg_forward_monthly')
+    relgraph(meanplotdata,x,y='pct_chg_forward_quarterly')
+    tscompare(meanplotdata,x,dep='pct_chg_forward_quarterly')
+
+dictvars = pd.Series(indepvars+['pct_chg_forward_weekly'])
+
+dictvars.to_excel('data_dict.xlsx')
+
+
         
         #%% data capping and flooring based on above results
 
@@ -154,8 +162,8 @@ for col in vifdata.columns:
         vifdata[col] = vifdata[col].fillna(minmax.mean())
 
 
-
-vifs = vifcalc(vifdata[[x for x in vifdata.columns if x != y and 'days_between' not in x.lower()]])
+gc.collect()
+vifs = vifcalc(vifdata[[x for x in vifdata.columns if x != y and 'days_between' not in x.lower() and 'sector' not in x.lower() and 'is_real_estate' not in x.lower()]].sample(frac=0.5,random_state=42))
 
 highvif = vifs.loc[(vifs >= 5) & (vifs.index != 'const')].sort_values(ascending=False)
 
