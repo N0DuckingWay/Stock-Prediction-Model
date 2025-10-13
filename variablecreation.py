@@ -18,7 +18,7 @@ fredkey = '84a26b17b51a63ed7dae3c7936a19d02'
 def releaseshiftcalc(indate,dayofweek,weekofmonth):
     ''' for shifting the date in indate to the date defined by dayofweek and weekofmonth. Example: dayofweek=0 and weekofmonth=1
     shifts the date to the first monday of the month'''
-    nextmonth = indate.month =1
+    nextmonth = indate.month +1
     if nextmonth > 12:
         nextmonth=1
         nextmonthyear = indate.year+1
