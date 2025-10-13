@@ -326,6 +326,7 @@ finalfinancials['Assets'] = allfinancials_merged.Assets.fillna(allfinancials_mer
 
 finalfinancials['price'] = allfinancials_merged['5. adjusted close']
 finalfinancials['dividend'] = allfinancials_merged['7. dividend amount']
+finalfinancials['dividend_yield'] = finalfinancials.dividend.fillna(0)/finalfinancials.price
 finalfinancials = finalfinancials.astype(float)
 
 finalfinancials.sort_index(ascending=True,inplace=True)
@@ -533,6 +534,7 @@ finalfinancials = feddata('PCESC96','pce_services','monthly',reset_month=True,ch
 finalfinancials = feddata('PCENDC96','pce_nondurablegoods','monthly',reset_month=True,change=False, pctchange=True,source='fred')
 
 finalfinancials = feddata('DTWEXBGS','usdollar_index','daily',reset_month=True,change=False, pctchange=True,source='fred')
+finalfinancials = feddata('VIXCLS','vix_index','daily',reset_month=True,change=True, pctchange=True,source='fred')
 finalfinancials = feddata('TERMCBCCALLNS','credit_card_interest_rate','monthly',reset_month=True,change=False, pctchange=True,source='fred',dateshift=35)
 
 
