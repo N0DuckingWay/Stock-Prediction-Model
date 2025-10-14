@@ -402,13 +402,13 @@ gc.collect()
 
 
 rev_by_naics = finalfinancials.groupby(['naics_code','date'])[['Revenue']].sum().sort_index(ascending=True)
-yoy_growth_by_naics =rev_by_naics.groupby('naics_code').pct_change(260).rename(columns={'Revenue':'ind_growth_yoy'})
-qoq_growth_by_naics =rev_by_naics.groupby('naics_code').pct_change(65).rename(columns={'Revenue':'ind_growth_qoq'})
+yoy_growth_by_naics =rev_by_naics.groupby('naics_code').pct_change(260).rename(columns={'Revenue':'ind_rev_growth_yoy'})
+qoq_growth_by_naics =rev_by_naics.groupby('naics_code').pct_change(65).rename(columns={'Revenue':'ind_rev_growth_qoq'})
 
 
 rev_by_sector = finalfinancials.groupby(['sector','date'])[['Revenue']].sum().sort_index(ascending=True)
-yoy_growth_by_sector =rev_by_sector.groupby('sector').pct_change(260).rename(columns={'Revenue':'sector_growth_yoy'})
-qoq_growth_by_sector =rev_by_sector.groupby('sector').pct_change(65).rename(columns={'Revenue':'sector_growth_qoq'})
+yoy_growth_by_sector =rev_by_sector.groupby('sector').pct_change(260).rename(columns={'Revenue':'sector_rev_growth_yoy'})
+qoq_growth_by_sector =rev_by_sector.groupby('sector').pct_change(65).rename(columns={'Revenue':'sector_rev_growth_qoq'})
 
 finalfinancials['ticker'] =  finalfinancials.index.get_level_values(0)
 excludecols = [x for x in finalfinancials.columns if 'sector' not in x and 'ticker' not in x]
@@ -536,12 +536,12 @@ finalfinancials = feddata('PCENDC96','pce_nondurablegoods','monthly',reset_month
 
 finalfinancials = feddata('DTWEXBGS','usdollar_index','daily',reset_month=True,change=False, pctchange=True,source='fred')
 finalfinancials = feddata('VIXCLS','vix_index','daily',reset_month=True,change=True, pctchange=True,source='fred')
-finalfinancials = feddata('TERMCBCCALLNS','credit_card_interest_rate','monthly',reset_month=True,change=False, pctchange=True,source='fred',dateshift=35)
+finalfinancials = feddata('TERMCBCCALLNS','credit_card_interest_rate','monthly',reset_month=True,change=True, pctchange=False,source='fred',dateshift=35)
 
 
-finalfinancials = feddata('DRCCLACBS','credit_card_delinquency','quarterly',reset_month=True,change=False, pctchange=True,source='fred',dateshift=48)
-finalfinancials = feddata('DRCLACBS','consumer_loan_delinquency','quarterly',reset_month=True,change=False, pctchange=True,source='fred',dateshift=48)
-finalfinancials = feddata('DRBLACBS','business_loan_delinquency','quarterly',reset_month=True,change=False, pctchange=True,source='fred',dateshift=48)
+finalfinancials = feddata('DRCCLACBS','credit_card_delinquency','quarterly',reset_month=True,change=True, pctchange=False,source='fred',dateshift=48)
+finalfinancials = feddata('DRCLACBS','consumer_loan_delinquency','quarterly',reset_month=True,change=True, pctchange=False,source='fred',dateshift=48)
+finalfinancials = feddata('DRBLACBS','business_loan_delinquency','quarterly',reset_month=True,change=True, pctchange=False,source='fred',dateshift=48)
 
 
 
