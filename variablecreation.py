@@ -26,8 +26,8 @@ def releaseshiftcalc(indate,dayofweek,weekofmonth):
         nextmonthyear = indate.year
     nextmonthstart = pd.to_datetime(f'{nextmonth}-01-{nextmonthyear}')
     nextmonthstart_plusweeks = nextmonthstart + datetime.timedelta(weekofmonth)
-    finalshift = dayofweek - nextmonthstart_plusweeks.weekday
-    if nextmonthstart_plusweeks.weekday <= dayofweek:
+    finalshift = dayofweek - nextmonthstart_plusweeks.weekday()
+    if nextmonthstart_plusweeks.weekday() <= dayofweek:
         finalshift = finalshift-7
     
     finaldate = nextmonthstart_plusweeks + datetime.timedelta(days=finalshift)
@@ -326,8 +326,9 @@ finalfinancials['Assets'] = allfinancials_merged.Assets.fillna(allfinancials_mer
 
 finalfinancials['price'] = allfinancials_merged['5. adjusted close']
 finalfinancials['dividend'] = allfinancials_merged['7. dividend amount']
-finalfinancials['dividend_yield'] = finalfinancials.dividend.fillna(0)/finalfinancials.price
 finalfinancials = finalfinancials.astype(float)
+finalfinancials['dividend_yield'] = finalfinancials.dividend.fillna(0)/finalfinancials.price
+
 
 finalfinancials.sort_index(ascending=True,inplace=True)
 
