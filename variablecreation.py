@@ -545,7 +545,7 @@ finalfinancials = feddata('DRBLACBS','business_loan_delinquency','quarterly',res
 
 
 
-finalfinancials = feddata('CSUSHPISA','home_price','monthly',reset_month=True,change=False, pctchange=True,source='fred',dateshift=2,shiftperiod='M')
+finalfinancials = feddata('CSUSHPISA','home_price','monthly',reset_month=True,change=False, pctchange=True,source='fred',dateshift=24)
 
 finalfinancials = feddata('BAMLC0A1CAAAEY','ig_bond_yield','daily',reset_month=True,change=True, pctchange=True,source='fred')
 finalfinancials = feddata('BAMLC0A1CAAA','ig_bond_oas_spread','daily',reset_month=True,change=True, pctchange=True,source='fred')
