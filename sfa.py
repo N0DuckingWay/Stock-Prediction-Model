@@ -115,12 +115,16 @@ for x in indepvars:
     tscompare(meanplotdata,x,dep='pct_chg_forward_quarterly')
 
 dictvars = pd.Series(indepvars+['pct_chg_forward_weekly'])
-if 'data_dict.xlsx' not in os.listdir:
+if 'data_dict.xlsx' not in os.listdir():
     dictvars.to_excel('data_dict.xlsx')
 else:
     dict_exist = pd.read_excel('data_dict.xlsx')
     dict_exist = dict_exist.loc[dict_exist['Variable'].isin(dictvars)]
     notin = [x for x in dictvars if x not in list(dict_exist['Variable'])]
+    notin = pd.DataFrame(notin)
+    notin.rename(columns={0:'Variable'},inplace=True)
+    dict_out = pd.concat([dict_exist,notin])
+    dict_out.to_excel('data_dict.xlsx')
 
 
         
