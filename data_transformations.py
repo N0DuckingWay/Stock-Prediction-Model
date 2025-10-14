@@ -73,7 +73,7 @@ def plot_recessions(varname,y=y,n_roll = 1,lag=None,maxvar = np.inf,minvar = -np
     
 
 def transform(series,choose=False):
-    global norms, transform_p
+    global norms, transform_p, transform_p_transposed
     series.hist(bins=30)
     plt.title(series.name)
     plt.savefig(rf'Distribution Plots/{series.name}.png')
@@ -123,7 +123,8 @@ def transform(series,choose=False):
         else:
             if transform_p.loc['p'].max() <= 0.05:
                 return series
-            maxval = transform_p.loc[(transform_p.p == transform_p.p.max()) & (transform_p.p > 0.0)].index[0]
+            transform_p_transposed = transform_p.T
+            maxval = transform_p_transposed.loc[(transform_p_transposed.p == transform_p_transposed.p.max()) & (transform_p_transposed.p > 0.0)].index[0]
             print(f'Transforming {series.name} using {maxval}')
             if maxval == 'ln':
                 return log
