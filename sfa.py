@@ -15,8 +15,8 @@ import matplotlib.pyplot as plt, os, gc
 
 vifcalc = lambda vfdata: pd.Series({vfdata.columns[i]:vif(vfdata.astype(float),i) for i in range(len(vfdata.columns))})
 warnings.filterwarnings("ignore")
-y = 'pct_chg_forward_weekly'
-
+y = 'pct_chg_forward_monthly'
+timehorizon = 'monthly' # for determining which variables to calculate VIF for
 
 
 def relgraph(meanplotdata,x,y='price',roll=500):
@@ -157,7 +157,9 @@ stats = pd.DataFrame(stats).T.sort_values(by='p',ascending=True)
 
 #%%
 print('Getting VIF data')
-vifdata = add_constant(data_transformed.fillna(data_transformed.mean()).copy())
+filled = data_transformed.fillna(data_transformed.mean()).copy()
+filled = filled[[x for x in filled.columns if timehorizon in x]] #only calculating VIF on variables using the time horizon specified in timehorizon
+vifdata = add_constant(filled)
 
 corrs_all = data_transformed.corr()
 corrs = data_transformed.corr()[keepcols]
@@ -173,6 +175,7 @@ for col in vifdata.columns:
         vifdata[col] = vifdata[col].clip(lower=min_byticker.min(),upper=max_byticker.max())
         
         vifdata[col] = vifdata[col].fillna(minmax.mean())
+
 
 
 gc.collect()
