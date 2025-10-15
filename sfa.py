@@ -61,7 +61,7 @@ def tscompare(meanplotdata,x,dep='price',roll=10,begin=None,end=None):
     lines2, labels2 = ax2.get_legend_handles_labels()
     
     # Combine them
-    ax1.legend(lines1 + lines2, labels1 + labels2, bbox_to_anchor=(1.05,0.5))
+    ax1.legend(lines1 + lines2, labels1 + labels2, bbox_to_anchor=(0,-.2),loc='upper left',borderaxespad=0)
     ax1.set_xlabel('Date')
     ax1.set_ylabel(x,color="black")
     ax1.tick_params(axis='y',color='black')
