@@ -139,6 +139,11 @@ stats = {}
 for key in data_transformed.columns: 
     if key not in depvars:
         data_const = add_constant(data_transformed[[key,y]],has_constant='add').dropna()
+        data_const[key].replace(np.inf,np.nan,inplace=True)
+        data_const[key].replace(np.nan,data_const[key].max(),inplace=True)
+        
+        data_const[key].replace(-np.inf,np.nan,inplace=True)
+        data_const[key].replace(np.nan,data_const[key].min(),inplace=True)
         model = OLS(exog=data_const[[key,'const']],endog=data_const[y],hasconst=True)
         results = model.fit()
         pvalue = results.pvalues[key]
