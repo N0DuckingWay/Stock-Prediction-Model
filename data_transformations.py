@@ -134,7 +134,7 @@ def transform(series,choose=False):
                 return sqrt
             elif maxval == 'bc':
                 out = bc[0]
-                if len(set(out.dropna())) == 1:
+                if len(set(out[~np.isnan(out)])) == 1:
                     return series
             elif maxval == 'logit':
                 return logit
@@ -200,20 +200,20 @@ gc.collect()
 #%%
 print('Normalizing')
 
-sh_result = pd.Series()
-for c in data_mc_dropped.columns:
-    stat,p = shapiro(data_mc_dropped[c].dropna())
-    sh_result[c] = p
+# sh_result = pd.Series()
+# for c in data_mc_dropped.columns:
+#     stat,p = shapiro(data_mc_dropped[c].dropna())
+#     sh_result[c] = p
 
-sh_result.sort_values(ascending=False,inplace=True)
+# sh_result.sort_values(ascending=False,inplace=True)
 
   
-transforms = pd.DataFrame(columns = data_mc_dropped.columns)
-for c in transforms.columns:
-    if len(set(data_mc_dropped[c].round(5))) > 2:
-        print(f'Getting best transformation for {c}')
-        transforms[c] = transform(data_mc_dropped[c])
-transforms.to_excel('transforms.xlsx')
+# transforms = pd.DataFrame(columns = data_mc_dropped.columns)
+# for c in transforms.columns:
+#     if len(set(data_mc_dropped[c].round(5))) > 2:
+#         print(f'Getting best transformation for {c}')
+#         transforms[c] = transform(data_mc_dropped[c])
+# transforms.to_excel('transforms.xlsx')
     
 data_transformed= data_mc_dropped.copy()
 for c in data_transformed.columns:
