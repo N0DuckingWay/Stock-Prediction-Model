@@ -18,7 +18,7 @@ y = 'pct_chg_forward_weekly'
 
 vifcalc = lambda vfdata: pd.Series({vfdata.columns[i]:vif(vfdata.astype(float),i) for i in range(len(vfdata.columns))})
 
-
+normalize = False
 
 
 
@@ -72,8 +72,7 @@ def plot_recessions(varname,y=y,n_roll = 1,lag=None,maxvar = np.inf,minvar = -np
     
     
 
-def transform(series,choose=False):
-    global norms, transform_p, transform_p_transposed
+def find_normalization(series):
     series.hist(bins=30)
     plt.title(series.name)
     plt.savefig(rf'Distribution Plots/{series.name}.png')
@@ -116,34 +115,66 @@ def transform(series,choose=False):
         if (norms['p'][best] <= norms['p']['none'] + .05) and (norms['p'][best] <= norms['p']['none']*2):
             best = 'none'
         
-        if choose==False:
-            out = pd.concat([norms['p'],pd.Series({'transform':t})])
-            out['best'] = best
-            return out
-        else:
-            if transform_p.loc['p'].max() <= 0.05:
-                return series
-            transform_p_transposed = transform_p.T
-            maxval = transform_p_transposed.loc[(transform_p_transposed.p == transform_p_transposed.p.max()) & (transform_p_transposed.p > 0.0)].index[0]
-            print(f'Transforming {series.name} using {maxval}')
-            if maxval == 'ln':
-                return log
-            elif maxval == 'log10':
-                return log10
-            elif maxval == 'sqrt':
-                return sqrt
-            elif maxval == 'bc':
-                out = bc[0]
-                if len(set(out[~np.isnan(out)])) == 1:
-                    return series
-            elif maxval == 'logit':
-                return logit
-            else:
-                return series
+        
+        out = pd.concat([norms['p'],pd.Series({'transform':t})])
+        out['best'] = best
+        return out
+
     else:
         return series
         
 
+def normalize(inseries,first_transform,normalizer,bc_lambda=None):
+    '''
+    
+
+    Parameters
+    ----------
+    inseries : Pandas series
+        the series that is being transformed
+    first_transform : str
+        the first transform, to make sure that values in the series conform to the needs of the normalizer function.
+        Must be either '*-1','+min+1','+1', or 'none'
+    normalizer : str
+        The name of the normalizer function. Must be either 'ln', 'log10', 'sqrt', ' bc', 'logit', or 'none'
+    bc_lambda : float, optional
+        The lambda for the box cox transformation. Mandatory if normlizer == 'bc'. The default is None.
+
+    Returns
+    -------
+    a transformed series.
+
+    '''
+    
+    if first_transform == '*-1':
+        data = inseries*-1
+    elif first_transform == '+min+1':
+        data = inseries-inseries.min()+1
+    elif first_transform == '+1':
+        data = inseries+1
+    elif first_transform == 'none':
+        data = inseries.copy()
+    else:
+        raise ValueError("Invalid value for first_transform parameter. Must be either '*-1','+min+1','+1', or 'none'.")
+    
+    if normalizer=='ln':
+        return np.log(data)
+    elif normalizer == 'log10':
+        return np.log10(data)
+    elif normalizer == 'sqrt':
+        return np.sqrt(data)
+    elif normalizer == 'bc':
+        if bc_lambda != None:
+            return boxcox(data,lmbda=bc_lambda)
+        else:
+            return ValueError('Invalid value for bc_lambda. Since normalizer=="bc", bc_lambda cannot be "None"')
+    elif normalizer == 'logit':
+        return np.log(data.replace(1,0.99999).replace(0,0.0001)/(1-data.replace(1,0.99999).replace(0,0.0001)))
+    elif normalizer == 'none':
+        return data
+    else:
+        raise ValueError("Invalid value for normalizer parameter. Must be either 'ln', 'log10', 'sqrt', ' bc', 'logit', or 'none'.")
+    
 
 
         #%%
@@ -200,26 +231,36 @@ gc.collect()
 #%%
 print('Normalizing')
 
-# sh_result = pd.Series()
-# for c in data_mc_dropped.columns:
-#     stat,p = shapiro(data_mc_dropped[c].dropna())
-#     sh_result[c] = p
-
-# sh_result.sort_values(ascending=False,inplace=True)
-
-  
-# transforms = pd.DataFrame(columns = data_mc_dropped.columns)
-# for c in transforms.columns:
-#     if len(set(data_mc_dropped[c].round(5))) > 2:
-#         print(f'Getting best transformation for {c}')
-#         transforms[c] = transform(data_mc_dropped[c])
-# transforms.to_excel('transforms.xlsx')
+if normalize == True:
+    sh_result = pd.Series()
+    for c in data_mc_dropped.columns:
+        stat,p = shapiro(data_mc_dropped[c].dropna())
+        sh_result[c] = p
+    
+    sh_result.sort_values(ascending=False,inplace=True)
+    
+      
+    transforms = pd.DataFrame(columns = data_mc_dropped.columns)
+    for c in transforms.columns:
+        if len(set(data_mc_dropped[c].round(5))) > 2:
+            print(f'Getting best transformation for {c}')
+            transforms[c] = find_normalization(data_mc_dropped[c])
+        else:
+            transforms[c] = None
+    transforms.to_excel('transforms.xlsx')
+else:
+    transforms = pd.read_excel('transforms.xlsx',index_col=0)
     
 data_transformed= data_mc_dropped.copy()
 for c in data_transformed.columns:
-    if len(set(data_mc_dropped[c])) > 2: 
-        print(f'Transforming {c}')
-        data_transformed[c] = transform(data_transformed[c],choose=True)
+    if len(transforms[c].dropna()) >0:
+        transform = transforms[c]['transform']
+        normalizer = transforms[c]['best']
+        bc_lambda = transforms[c]['bc_lambda']
+        if len(set(data_mc_dropped[c])) > 2 and transforms[c]['best'] != 'none': 
+            print(f'Transforming {c}')
+            data_transformed[c] = normalize(data_transformed[c],first_transform=transform,normalizer=normalizer,bc_lambda=bc_lambda)
+            gc.collect()
 
 data_transformed.to_pickle(r'Data\normalized.p')
 del data_mc_dropped
