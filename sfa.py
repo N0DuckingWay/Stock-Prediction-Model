@@ -86,7 +86,8 @@ def graphstock(data,ticker,price='price'):
     plt.show()
     
 
-drop = ['man_by_ppi_ind','man_by_ppi_ind_pctchg_monthly','man_by_ppi_ind_pctchg_quarterly'
+drop = [
+        #'man_by_ppi_ind','man_by_ppi_ind_pctchg_monthly','man_by_ppi_ind_pctchg_quarterly'
         #'EV','EV/EBIT','EV/NI','Debt_by_NI','P/EBITDA',
         ]
 #%%
@@ -118,7 +119,7 @@ dictvars = pd.Series(indepvars+['pct_chg_forward_weekly'])
 if 'data_dict.xlsx' not in os.listdir():
     dictvars.to_excel('data_dict.xlsx')
 else:
-    dict_exist = pd.read_excel('data_dict.xlsx')
+    dict_exist = pd.read_excel('data_dict.xlsx',index_col=0)
     dict_exist = dict_exist.loc[dict_exist['Variable'].isin(dictvars)]
     notin = [x for x in dictvars if x not in list(dict_exist['Variable'])]
     notin = pd.DataFrame(notin)
