@@ -19,8 +19,16 @@ y = 'pct_chg_forward_monthly'
 timehorizon = 'monthly' # for determining which variables to calculate VIF for
 
 
-def relgraph(meanplotdata,x,y='price',roll=500):
+def relgraph(meanplotdata,x,y='price',roll=500,sample=2000):
     cutdata = meanplotdata[[x,y]].copy()
+    
+    sampled = cutdata.sample(n=sample,random_state=42)
+    sampled.plot.scatter(x=x,y=y,marker=',',s=1,lw=0)
+    plt.xlabel(x)
+    plt.ylabel(y)
+    plt.title(f'Scatter plot of {y} by {x} (sample size = {sample})')
+    plt.savefig(f'Plots\scatter_of_{y}_by_{x.replace("/","_")}.png')
+    plt.show()
     rollingmean = cutdata.sort_values(by=x).dropna().rolling(roll).mean()
     
     
@@ -36,6 +44,8 @@ def relgraph(meanplotdata,x,y='price',roll=500):
     plt.tight_layout(pad=1.25)
     plt.savefig(f'Plots\{y}_by_{x.replace("/","_")}.png',bbox_inches='tight' )
     plt.show()
+    
+    
     
     
 
@@ -71,7 +81,15 @@ def tscompare(meanplotdata,x,dep='price',roll=10,begin=None,end=None):
     ax2.spines['right'].set_color('red')
     plt.title(f'Comparison of {x} and {dep} over time')
     plt.tight_layout(pad=1.25)
-    plt.savefig(f'Plots\compare_{x.replace("/","_")}_and_{dep}_over_time.png',bbox_inches='tight' )
+    if begin == None or end == None:
+        title = f'Plots\compare_{x.replace("/","_")}_and_{dep}_over_time.png'
+    elif begin != None and end == None:
+        title= f'Plots\compare_{x.replace("/","_")}_and_{dep}_over_time_start_{begin}.png'
+    elif begin == None and end != None:
+        title= f'Plots\compare_{x.replace("/","_")}_and_{dep}_over_time_end_{end}.png'
+    else:
+        title= f'Plots\compare_{x.replace("/","_")}_and_{dep}_over_time_start_{begin}_end_{end}.png'
+    plt.savefig(title,bbox_inches='tight' )
     
     plt.show()
     
@@ -105,15 +123,22 @@ meanplotdata = data_transformed.groupby('date').mean()
 clip = {x:{'lower':data_transformed[x].mean()-data_transformed[x].std()*1.96,'upper':data_transformed[x].mean()+data_transformed[x].std()*1.96} for x in data_transformed.columns if data_transformed[x].dtype != bool}
 depvars = [x for x in data_transformed if 'pct_chg_forward' in x]
 indepvars = [x for x in data_transformed.columns if x not in depvars and 'price' not in x and 'pct_chg_forward' not in x and x in clip.keys()]
+
+begin='2016-01-01'
+end='2019-12-31'
 for x in indepvars:
     relgraph(meanplotdata,x)
     tscompare(meanplotdata,x)
+    tscompare(meanplotdata,x,begin=begin,end=end)
     relgraph(meanplotdata,x,y='pct_chg_forward_weekly')
     tscompare(meanplotdata,x,dep='pct_chg_forward_weekly')
+    tscompare(meanplotdata,x,dep='pct_chg_forward_weekly',begin=begin,end=end)
     relgraph(meanplotdata,x,y='pct_chg_forward_monthly')
     tscompare(meanplotdata,x,dep='pct_chg_forward_monthly')
+    tscompare(meanplotdata,x,dep='pct_chg_forward_monthly',begin=begin,end=end)
     relgraph(meanplotdata,x,y='pct_chg_forward_quarterly')
     tscompare(meanplotdata,x,dep='pct_chg_forward_quarterly')
+    tscompare(meanplotdata,x,dep='pct_chg_forward_quarterly',begin=begin,end=end)
 
 dictvars = pd.Series(indepvars+['pct_chg_forward_weekly'])
 if 'data_dict.xlsx' not in os.listdir():
