@@ -179,7 +179,7 @@ def normalize(inseries,first_transform,normalizer,bc_lambda=None):
 
         #%%
 
-data = pd.read_pickle('Data/financials.p').drop(columns='sector')
+data = pd.read_pickle('Data/train_init.p').drop(columns='sector')
 
 
 
@@ -198,12 +198,18 @@ clippeddata= data.copy()
 
 
 for col in data.columns:
+    
     minmax = clippeddata[col].loc[(clippeddata[col] != float('inf')) & (clippeddata[col] != float('-inf'))]
     # min_byticker = minmax.groupby('ticker').min()
     # max_byticker = minmax.groupby('ticker').max()
-        
-    
-    clippeddata[col] = clippeddata[col].clip(lower=minmax.min(),upper=minmax.max())
+    if col == 'pct_chg_forward_weekly':
+        clippeddata[col] = clippeddata[col].clip(lower=-0.25,upper=0.25)
+    elif col == 'pct_chg_forward_monthly':
+        clippeddata[col] = clippeddata[col].clip(lower=-0.55,upper=0.55)
+    elif col == 'pct_chg_forward_quarterly':
+        clippeddata[col] = clippeddata[col].clip(lower=-1.2,upper=1.2)
+    else:
+        clippeddata[col] = clippeddata[col].clip(lower=minmax.min(),upper=minmax.max())
     # clippeddata[col] = clippeddata[col].fillna(minmax.mean())
 
 del data
