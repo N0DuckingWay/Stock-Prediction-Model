@@ -194,23 +194,16 @@ print('Capping and flooring data')
 
 clippeddata= data.copy()
 
-
+clips = pd.read_excel('clips.xlsx',header=0,index_col=0)
 
 
 for col in data.columns:
     
     minmax = clippeddata[col].loc[(clippeddata[col] != float('inf')) & (clippeddata[col] != float('-inf'))]
-    # min_byticker = minmax.groupby('ticker').min()
-    # max_byticker = minmax.groupby('ticker').max()
-    if col == 'pct_chg_forward_weekly':
-        clippeddata[col] = clippeddata[col].clip(lower=-0.25,upper=0.25)
-    elif col == 'pct_chg_forward_monthly':
-        clippeddata[col] = clippeddata[col].clip(lower=-0.55,upper=0.55)
-    elif col == 'pct_chg_forward_quarterly':
-        clippeddata[col] = clippeddata[col].clip(lower=-1.2,upper=1.2)
-    else:
-        clippeddata[col] = clippeddata[col].clip(lower=minmax.min(),upper=minmax.max())
-    # clippeddata[col] = clippeddata[col].fillna(minmax.mean())
+
+    if col in clips.columns:
+        clippeddata[col] = clippeddata[col].clip(lower=clips[col]['lower'],upper=clips[col]['upper'])
+    
 
 del data
 gc.collect()
