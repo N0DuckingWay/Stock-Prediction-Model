@@ -223,7 +223,7 @@ for col in vifdata.columns:
 
 
 gc.collect()
-vifs = vifcalc(vifdata[[x for x in vifdata.columns if x != y and 'days_between' not in x.lower() and 'sector' not in x.lower() and 'is_real_estate' not in x.lower()]].sample(frac=0.5,random_state=42))
+vifs = vifcalc(vifdata[[x for x in vifdata.columns if x != y and 'days_between' not in x.lower() and 'sector' not in x.lower() and 'is_real_estate' not in x.lower()]].sample(frac=0.25,random_state=42))
 
 highvif = vifs.loc[(vifs >= 5) & (vifs.index != 'const')].sort_values(ascending=False)
 
