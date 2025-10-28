@@ -269,5 +269,5 @@ for c in data_transformed.columns:
             gc.collect()
 
 data_transformed.to_pickle(r'Data\normalized.p')
-del data_mc_dropped
+del data_mc_dropped, data_transformed
 gc.collect()
