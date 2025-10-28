@@ -203,6 +203,8 @@ for col in data.columns:
 
     if col in clips.columns:
         clippeddata[col] = clippeddata[col].clip(lower=clips[col]['lower'],upper=clips[col]['upper'])
+    else:
+        clippeddata[col] = clippeddata[col].clip(lower=minmax.min(),upper=minmax.max())
     
 
 del data
