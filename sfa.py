@@ -116,13 +116,23 @@ data_transformed = pd.read_pickle(r'Data\normalized.p')
 
 bools = list(data_transformed.dtypes.loc[data_transformed.dtypes=='bool'].index)
 data_transformed[bools] = data_transformed[bools].astype(int)
-keepcols = [x for x in data_transformed.columns]
+
             
 meanplotdata = data_transformed.groupby('date').mean()
 
 clip = {x:{'lower':data_transformed[x].mean()-data_transformed[x].std()*1.96,'upper':data_transformed[x].mean()+data_transformed[x].std()*1.96} for x in data_transformed.columns if data_transformed[x].dtype != bool}
-depvars = [x for x in data_transformed if 'pct_chg_forward' in x]
-indepvars = [x for x in data_transformed.columns if x not in depvars and 'price' not in x and 'pct_chg_forward' not in x and x in clip.keys()]
+
+if timehorizon == 'weekly':
+    keepvars = [x for x in data_transformed if 'monthly' not in x and 'quarterly' not in x]
+elif timehorizon == 'monthly':
+    keepvars = [x for x in data_transformed if 'weekly' not in x and 'quarterly' not in x]
+elif timehorizon == 'quarterly':
+    keepvars = [x for x in data_transformed if 'monthly' not in x and 'weekly' not in x]
+
+depvars = [x for x in keepvars if 'pct_chg_forward' in x]
+
+
+indepvars = [x for x in keepvars if x not in depvars and 'price' not in x and 'pct_chg_forward' not in x and x in clip.keys()]
 
 begin='2016-01-01'
 end='2019-12-31'
@@ -130,15 +140,18 @@ for x in indepvars:
     relgraph(meanplotdata,x)
     tscompare(meanplotdata,x)
     tscompare(meanplotdata,x,begin=begin,end=end)
-    relgraph(meanplotdata,x,y='pct_chg_forward_weekly')
-    tscompare(meanplotdata,x,dep='pct_chg_forward_weekly')
-    tscompare(meanplotdata,x,dep='pct_chg_forward_weekly',begin=begin,end=end)
-    relgraph(meanplotdata,x,y='pct_chg_forward_monthly')
-    tscompare(meanplotdata,x,dep='pct_chg_forward_monthly')
-    tscompare(meanplotdata,x,dep='pct_chg_forward_monthly',begin=begin,end=end)
-    relgraph(meanplotdata,x,y='pct_chg_forward_quarterly')
-    tscompare(meanplotdata,x,dep='pct_chg_forward_quarterly')
-    tscompare(meanplotdata,x,dep='pct_chg_forward_quarterly',begin=begin,end=end)
+    if timehorizon == 'weekly':
+        relgraph(meanplotdata,x,y='pct_chg_forward_weekly')
+        tscompare(meanplotdata,x,dep='pct_chg_forward_weekly')
+        tscompare(meanplotdata,x,dep='pct_chg_forward_weekly',begin=begin,end=end)
+    elif timehorizon == 'monthly':
+        relgraph(meanplotdata,x,y='pct_chg_forward_monthly')
+        tscompare(meanplotdata,x,dep='pct_chg_forward_monthly')
+        tscompare(meanplotdata,x,dep='pct_chg_forward_monthly',begin=begin,end=end)
+    elif timehorizon == 'quarterly':
+        relgraph(meanplotdata,x,y='pct_chg_forward_quarterly')
+        tscompare(meanplotdata,x,dep='pct_chg_forward_quarterly')
+        tscompare(meanplotdata,x,dep='pct_chg_forward_quarterly',begin=begin,end=end)
 
 dictvars = pd.Series(indepvars+['pct_chg_forward_weekly'])
 if 'data_dict.xlsx' not in os.listdir():
@@ -184,12 +197,16 @@ stats = pd.DataFrame(stats).T.sort_values(by='p',ascending=True)
 
 #%%
 print('Getting VIF data')
+
+
+data_transformed = data_transformed[keepvars] #removing variables that are not aligned with the time horizon
+
 filled = data_transformed.fillna(data_transformed.mean()).copy()
-filled = filled[[x for x in filled.columns if timehorizon in x]] #only calculating VIF on variables using the time horizon specified in timehorizon
+
 vifdata = add_constant(filled)
 
 corrs_all = data_transformed.corr()
-corrs = data_transformed.corr()[keepcols]
+corrs = data_transformed.corr()
 
 del data_transformed
 gc.collect()
