@@ -10,9 +10,13 @@ import pandas as pd, requests, json, os, gc, datetime
 
 
 
-stockkey = '***REMOVED***'
-blskey = '***REMOVED***'
-fredkey = '***REMOVED***'
+with open('apikeys.json','rb+') as file:
+    
+    apikeys = js.load(file)
+    stockkey = apikeys['stockkey']
+    blskey = apikeys['blskey']
+    fredkey = apikeys['fredkey']
+    
 
 
 def releaseshiftcalc(indate,dayofweek,weekofmonth):
