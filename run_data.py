@@ -10,6 +10,8 @@ import datagathering
 gc.collect()
 import variablecreation
 gc.collect()
+import newssummary
+gc.collect()
 import train_test_split
 gc.collect()
 import data_transformations
