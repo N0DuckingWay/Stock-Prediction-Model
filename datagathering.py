@@ -21,10 +21,14 @@ def getnaics(sic):
     else:
         return float('nan')
 
-stockkey = 'GJT87YF8QI5GZUND'
-blskey = '6eebf73b51c642fe8914b9b72cc73569'
-fredkey = '84a26b17b51a63ed7dae3c7936a19d02'
 
+with open('apikeys.json','rb+') as file:
+    
+    apikeys = js.load(file)
+    stockkey = apikeys['stockkey']
+    blskey = apikeys['blskey']
+    fredkey = apikeys['fredkey']
+    
 
 sys.setrecursionlimit(10000000)
 
