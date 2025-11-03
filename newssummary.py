@@ -66,7 +66,6 @@ for h in range(len(tickers)):
                 tries +=1
             else:
                 raise Exception(e)
-    break
     print(f'finished pulling data for {t}. {round(100*(h+1)/len(tickers),2)}% finished.')
     sentiment = pd.concat([sentiment,tickerdata],axis=0)
     
@@ -77,26 +76,10 @@ outdata = pd.merge(data,sentiment,left_on=['ticker','date'],right_on=['ticker','
 outdata.sort_index(ascending=True,inplace=True)
 
 
-outdata['lastweek_avgnews'] = outdata.groupby('ticker')['rating'].rolling(7).mean()
-outdata['lastweek_bestnews'] = outdata.groupby('ticker')['rating'].rolling(7).max()
-outdata['lastweek_worstnews'] = outdata.groupby('ticker')['rating'].rolling(7).min()
 
-
-outdata['lastmonth_avgnews'] = outdata.groupby('ticker')['rating'].rolling(30).mean()
-outdata['lastmonth_bestnews'] = outdata.groupby('ticker')['rating'].rolling(30).max()
-outdata['lastmonth_worstnews'] = outdata.groupby('ticker')['rating'].rolling(30).min()
-
-outdata['lastqtr_avgnews'] = outdata.groupby('ticker')['rating'].rolling(90).mean()
-outdata['lastqtr_bestnews'] = outdata.groupby('ticker')['rating'].rolling(90).max()
-outdata['lastqtr_worstnews'] = outdata.groupby('ticker')['rating'].rolling(90).min()
-
-outdata['lastyear_avgnews'] = outdata.groupby('ticker')['rating'].rolling(365).mean()
-outdata['lastyear_bestnews'] = outdata.groupby('ticker')['rating'].rolling(365).max()
-outdata['lastyear_worstnews'] = outdata.groupby('ticker')['rating'].rolling(365).min()
-
-outdata['news_weekvsyear'] = outdata['lastweek_avgnews']/outdata['lastyear_avgnews']
-outdata['news_monthvsyear'] = outdata['lastmonth_avgnews']/outdata['lastyear_avgnews']
-outdata['news_qtrvsyear'] = outdata['lastqtr_avgnews']/outdata['lastyear_avgnews']
+outdata['news_weekvsyear'] = outdata['rating_lastsevendays']/outdata['rating_last365days']
+outdata['news_monthvsyear'] = outdata['rating_last31days']/outdata['rating_last365days']
+outdata['news_qtrvsyear'] = outdata['rating_last90days']/outdata['rating_last365days']
 
 outdata.set_index(['ticker','date'],inplace=True)
 
