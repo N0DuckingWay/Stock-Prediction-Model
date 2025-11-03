@@ -27,7 +27,7 @@ sentiment = pd.DataFrame()
 for h in range(len(tickers)):
     t = tickers[h]
     tickerdata = data.loc[t].dropna(subset='price').copy()
-    dates = list(tickerdata.index)
+    dates = [str(x.date()) for x in tickerdata.index]
     tickerdata = pd.DataFrame()
     outputs = []
     
@@ -36,11 +36,11 @@ for h in range(len(tickers)):
     maxtries = 5
     while tries < maxtries and success == 0: 
         try:
-            response = client.responses.create(model="gpt-5",
+            response = client.responses.create(model="gpt-5-mini",
             input=f'''
             Use web search to summarize the news for ticker symbol {t} on every one of the following dates: {dates}. For each date, rate the news on that date, as well as in the 7 days leading up to
             that date, 31 days leading up to that date, 90 days leading up to that date, and 365 days leading up to that date.
-            Respond with only the ticker and a rating of the news on a 0-10 scale, with 0 being most negative, 5 being neutral, and 10 being most positive.
+            Respond with only a rating of the news on a 0-10 scale, with 0 being most negative, 5 being neutral, and 10 being most positive.
             Days with no news should have a null value. Results should be formatted as a comma separated table with the date as the index,
             and "rating_onday","rating_lastsevendays",rating_last31days", "rating_last90days", and "rating_last365days" as the columns.
             "rating_onday" is the rating of the news on that day only. "rating_lastsevendays" is the rating of the news over the last seven days.
