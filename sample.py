@@ -8,10 +8,10 @@ Created on Sun Nov  2 22:52:56 2025
 import pandas as pd 
 indata = pd.read_pickle('Data/financials.p')
 
-sampsize = 300000
+sampsize = 200000
 
 tickers = len(set(indata.index.get_level_values(0)))
-daysperticker = max(100,round(sampsize/tickers)) #max of 100 or the average day per ticker.
+daysperticker = round(sampsize/tickers) #max of 100 or the average day per ticker.
 
 tickers_by_daysofdata = indata.groupby('ticker').count()['price'].sort_values(ascending=False)
 
