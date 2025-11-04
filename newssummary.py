@@ -43,15 +43,14 @@ for h in range(len(tickers)):
             try:
                 response = client.responses.create(model="gpt-5-mini",
                 input=f'''
-                Use web search to summarize the news for ticker symbol {t} on every one of the following dates: {subdates}. For each date, rate the news on that date, as well as in the 7 days leading up to
+                Use web search to summarize the news for ticker symbol {t} on every one of the following dates: {subdates}. For each date, rate the news in the 7 days leading up to
                 that date, 31 days leading up to that date, 90 days leading up to that date, and 365 days leading up to that date.
                 The news should be rated on a 0-10 scale, with 0 being most negative, 5 being neutral, and 10 being most positive.
                 Days with no news should have a null value. Results should be formatted as a json with "date",
-                "rating_onday","rating_lastsevendays",rating_last31days", "rating_last90days", "rating_last365days", and "sources", and "notes" as properties.
+                "rating_lastsevendays",rating_last31days", "rating_last90days", "rating_last365days", and "sources" as properties.
                 "date" should only contain the date, "rating_onday" should only contain the integer rating of the news on that date only. "rating_lastsevendays" should only contain the integer rating of the news over the seven days leading up to that date.
                 "rating_last31days" should only contain the integer rating of the news over the 31 days leading up to that date, "rating_last90days" should only contain the integer rating of the news over the last 90 days leading up to that date.
                 "rating_last365days" should only contain the integer rating of the news over the last 365 days leading up to that date. "sources" contains a list of sources, separated by semicolons (do not use commas).
-                "notes" contains any notes.
                 
                 Do not ask follow up questions. Use only the information provided. Only return the JSON.''',
                 tools=[{'type':'web_search'}])
