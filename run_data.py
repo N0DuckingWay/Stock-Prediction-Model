@@ -12,7 +12,7 @@ import variablecreation
 gc.collect()
 import sample
 gc.collect()
-import newssummary
+import newssummary #need to find an alternative to chatgpt
 gc.collect()
 import train_test_split
 gc.collect()
