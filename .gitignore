@@ -3,3 +3,6 @@ apikeys.json
 __pycache__/
 *.pyc
 *.pyo
+Distribution Plots/
+Plots/
+.DS_Store
