@@ -1,31 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Oct 31 02:48:25 2025
-
-@author: paperspace
+Fetches Alpha Vantage NEWS_SENTIMENT for each (ticker, date) in Data/sampled.p,
+adds news_sentiment and ticker_sentiment columns, and saves to Data/sampled_withnews.p.
 """
 
-
 import time
-import math
 import random
 from typing import Dict, Any, Optional, Tuple
 
 import pandas as pd
 import requests
-import os
 import json as js
-
-querylen = 100
-
-
-
-with open('apikeys.json','rb+') as file:
-    
-    apikey = js.load(file)
-    os.environ['stockkey'] = apikey['stockkey']
-    
-data = pd.read_pickle('Data/sampled.p')
 
 
 def _av_datetime_str(d: pd.Timestamp, end_of_day: bool = False) -> str:
@@ -71,25 +56,38 @@ def _request_with_retry(
             time.sleep((backoff ** attempt) + random.uniform(0, 0.25))
 
 
-def _extract_ticker_sentiment_from_feed(
+def _extract_sentiments_from_feed(
     payload: Dict[str, Any],
     ticker: str,
-) -> Tuple[Optional[float], int]:
+) -> Tuple[Optional[float], Optional[float]]:
     """
-    From a NEWS_SENTIMENT payload, compute a relevance-weighted average sentiment
-    for `ticker` across all returned articles.
+    From a NEWS_SENTIMENT payload, extract:
+      - news_sentiment: simple average of overall_sentiment_score across all articles
+      - ticker_sentiment: relevance-weighted average of ticker_sentiment_score for `ticker`
 
     Returns:
-      (sentiment_score or None, number_of_articles_used)
+      (news_sentiment or None, ticker_sentiment or None)
     """
     feed = payload.get("feed", [])
     if not isinstance(feed, list) or not feed:
-        return None, 0
+        return None, None
 
     ticker = ticker.upper()
+
+    # News sentiment: simple mean of overall_sentiment_score across all articles
+    news_scores = []
+    for item in feed:
+        try:
+            score = float(item.get("overall_sentiment_score"))
+            news_scores.append(score)
+        except (TypeError, ValueError):
+            continue
+
+    news_sentiment = sum(news_scores) / len(news_scores) if news_scores else None
+
+    # Ticker sentiment: relevance-weighted average of ticker_sentiment_score for this ticker
     weighted_sum = 0.0
     weight_sum = 0.0
-    used = 0
 
     for item in feed:
         ts_list = item.get("ticker_sentiment", [])
@@ -102,22 +100,20 @@ def _extract_ticker_sentiment_from_feed(
 
             try:
                 score = float(ts.get("ticker_sentiment_score"))
-            except Exception:
+            except (TypeError, ValueError):
                 continue
 
             try:
                 rel = float(ts.get("relevance_score", 1.0))
-            except Exception:
+            except (TypeError, ValueError):
                 rel = 1.0
 
             weighted_sum += score * rel
             weight_sum += rel
-            used += 1
 
-    if used == 0 or weight_sum == 0:
-        return None, 0
+    ticker_sentiment = (weighted_sum / weight_sum) if weight_sum > 0 else None
 
-    return (weighted_sum / weight_sum), used
+    return news_sentiment, ticker_sentiment
 
 
 def add_alpha_vantage_sentiment(
@@ -127,18 +123,16 @@ def add_alpha_vantage_sentiment(
     requests_per_minute: int = 70,
 ) -> pd.DataFrame:
     """
-    Fetch Alpha Vantage NEWS_SENTIMENT for every (ticker, date) in data.index.
+    Fetch Alpha Vantage NEWS_SENTIMENT for every unique (ticker, date) in data.index.
 
     Assumptions:
       - data.index is a 2-level MultiIndex: (ticker, date)
-      - no duplicate index entries
       - date values have no time component
       - Alpha Vantage API key is stored at apikey["stockkey"]
 
     Adds columns:
-      - av_sentiment_score (float, NaN if unavailable)
-      - av_sentiment_articles (int)
-      - av_sentiment_ok (bool)
+      - news_sentiment (float, NaN if unavailable)
+      - ticker_sentiment (float, NaN if unavailable)
     """
     key = apikey.get("stockkey")
     if not key:
@@ -154,15 +148,17 @@ def add_alpha_vantage_sentiment(
     session = requests.Session()
     base_url = "https://www.alphavantage.co/query"
 
-    scores = []
-    article_counts = []
-    oks = []
+    # Deduplicate to make exactly one API call per unique (ticker, date) pair
+    unique_pairs = idx.drop_duplicates()
+
+    # results keyed by (ticker_upper, pd.Timestamp) -> (news_sentiment, ticker_sentiment)
+    results: Dict[Tuple[str, pd.Timestamp], Tuple[Optional[float], Optional[float]]] = {}
 
     last_call_t = 0.0
 
-    for ticker, d in idx:
+    for ticker, d in unique_pairs:
         ticker = str(ticker).upper().strip()
-        d = pd.Timestamp(d)  # guaranteed date-only
+        d = pd.Timestamp(d)
 
         # Rate limiting
         now = time.time()
@@ -179,21 +175,38 @@ def add_alpha_vantage_sentiment(
             "apikey": key,
         }
 
-        payload = _request_with_retry(session, base_url, params)
-        score, used = _extract_ticker_sentiment_from_feed(payload, ticker)
+        try:
+            payload = _request_with_retry(session, base_url, params)
+            news_sent, tick_sent = _extract_sentiments_from_feed(payload, ticker)
+        except Exception:
+            news_sent, tick_sent = None, None
 
+        results[(ticker, d)] = (news_sent, tick_sent)
         last_call_t = time.time()
 
-        scores.append(score if score is not None else math.nan)
-        article_counts.append(int(used))
-        oks.append(score is not None)
+    # Left-join results back onto original data index (preserves row count and order)
+    index_tuples = [(str(t).upper().strip(), pd.Timestamp(d)) for t, d in idx]
+
+    news_vals = []
+    tick_vals = []
+    for t, d in index_tuples:
+        pair = results.get((t, d), (None, None))
+        news_vals.append(float('nan') if pair[0] is None else pair[0])
+        tick_vals.append(float('nan') if pair[1] is None else pair[1])
 
     out = data.copy()
-    out["av_sentiment_score"] = scores
-    out["av_sentiment_articles"] = article_counts
-    out["av_sentiment_ok"] = oks
+    out["news_sentiment"] = news_vals
+    out["ticker_sentiment"] = tick_vals
     return out
 
 
-# Example usage:
-# data = add_alpha_vantage_sentiment(data, apikey, requests_per_minute=70)
+if __name__ == "__main__":
+    with open('apikeys.json', 'rb+') as f:
+        apikey = js.load(f)
+
+    data = pd.read_pickle('Data/sampled.p')
+
+    result = add_alpha_vantage_sentiment(data, apikey, requests_per_minute=70)
+
+    result.to_pickle('Data/sampled_withnews.p')
+    print(f"Saved {len(result)} rows to Data/sampled_withnews.p")
