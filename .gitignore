@@ -1,2 +1,5 @@
 Data/
 apikeys.json
+__pycache__/
+*.pyc
+*.pyo
