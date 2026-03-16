@@ -10,6 +10,10 @@ import datagathering
 gc.collect()
 import variablecreation
 gc.collect()
+import sample
+gc.collect()
+import newssummary #need to find an alternative to chatgpt
+gc.collect()
 import train_test_split
 gc.collect()
 import data_transformations
