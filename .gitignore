@@ -6,3 +6,4 @@ __pycache__/
 Distribution Plots/
 Plots/
 .DS_Store
+.claude/
